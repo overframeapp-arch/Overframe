@@ -48,6 +48,12 @@ let sessionManager: SessionManager | null = null
 let memorySnapshotInterval: NodeJS.Timeout | null = null
 
 function setStartupWithWindows(enabled: boolean): void {
+  if (!app.isPackaged) {
+    // Never register the raw dev electron binary as a Windows startup item.
+    // Also actively remove any stale entry that a previous dev session may have set.
+    app.setLoginItemSettings({ openAtLogin: false })
+    return
+  }
   app.setLoginItemSettings({ openAtLogin: enabled, args: ['--hidden'] })
 }
 
