@@ -1,0 +1,28 @@
+node_modules/
+out/
+dist/
+.vite/
+coverage/
+
+# Logs
+*.log
+make-log.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.local
+.env*.local
+
+# Build artefacts
+*.tsbuildinfo
+
+# App user-data store (settings, profiles, sessions — local only, never commit)
+aether-store.json
+
+# Landing (Next.js build outputs — handled by landing/.gitignore but explicit here too)
+landing/.next/
+landing/out/

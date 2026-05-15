@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <!-- Tier 2 — SILVER full badge with wordmark -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#0d0e14"/>
+      <stop offset="100%" stop-color="#050608"/>
+    </linearGradient>
+    <radialGradient id="atm" cx="280" cy="256" r="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#b0b0c0" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#b0b0c0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#f5f5f8"/>
+      <stop offset="40%"  stop-color="#c8c8d2"/>
+      <stop offset="100%" stop-color="#6a6a78"/>
+    </linearGradient>
+    <linearGradient id="sd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#30303c"/>
+      <stop offset="100%" stop-color="#0a0a10"/>
+    </linearGradient>
+    <radialGradient id="sh" cx="0.38" cy="0.3" r="0.65">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#f5f5f8"/>
+      <stop offset="100%" stop-color="#9090a0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="512" fill="url(#bg)"/>
+  <rect width="1024" height="512" fill="url(#atm)"/>
+
+  <g transform="translate(75, 54) scale(0.79)">
+    <rect x="64"  y="64"  width="288" height="288" rx="56" fill="url(#sd)" stroke="url(#sl)" stroke-width="16"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#sl)"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#sh)"/>
+  </g>
+
+  <text x="560" y="228"
+        font-family="Inter, -apple-system, ui-sans-serif, sans-serif"
+        font-weight="800" font-size="80" letter-spacing="-2"
+        fill="#eaeaee">OVERFRAME</text>
+  <text x="562" y="308"
+        font-family="Inter, -apple-system, ui-sans-serif, sans-serif"
+        font-weight="700" font-size="58" letter-spacing="5"
+        fill="url(#tg)">SILVER</text>
+  <text x="563" y="356"
+        font-family="Inter, -apple-system, ui-sans-serif, sans-serif"
+        font-weight="500" font-size="20" letter-spacing="3"
+        fill="#808090">SUPPORTER · TIER II</text>
+</svg>

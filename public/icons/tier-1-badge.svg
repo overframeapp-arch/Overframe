@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <!-- BRONZE — transparent bg, icon mark only, 2:1.
+       All light is baked into the shape fills — no bg rect needed.
+       Resvg will produce a PNG with true alpha. -->
+  <defs>
+    <!-- Bronze metallic gradient: top-left highlight → deep shadow -->
+    <linearGradient id="bl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#f4c57a"/>
+      <stop offset="40%"  stop-color="#cd7f32"/>
+      <stop offset="100%" stop-color="#6b3a12"/>
+    </linearGradient>
+    <linearGradient id="bd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#4a2808"/>
+      <stop offset="100%" stop-color="#1a0800"/>
+    </linearGradient>
+    <!-- Specular radial highlight — top-left quadrant of each face -->
+    <radialGradient id="sh" cx="0.32" cy="0.28" r="0.6">
+      <stop offset="0%"   stop-color="#fff0cc" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#fff0cc" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Soft bronze halo behind the mark (still within the shapes) -->
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#cd7f32" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#cd7f32" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Halo painted as a large circle — purely decorative glow ring -->
+  <ellipse cx="512" cy="256" rx="280" ry="240" fill="url(#halo)"/>
+
+  <!-- Mark: source 512×512 centred at (512,256); scale=0.82 →
+       translate = (512 - 256×0.82, 256 - 256×0.82) = (302, 46) -->
+  <g transform="translate(302, 46) scale(0.82)">
+    <rect x="64"  y="64"  width="288" height="288" rx="56"
+          fill="url(#bd)" stroke="url(#bl)" stroke-width="16"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#bl)"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#sh)"/>
+  </g>
+</svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Emerald — instantly identifies the dev build in tray/taskbar -->
+  <defs>
+    <linearGradient id="gl" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#6ee7b7"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="gd" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#064e3b"/>
+      <stop offset="100%" stop-color="#012318"/>
+    </linearGradient>
+    <radialGradient id="sh" cx="0.38" cy="0.3" r="0.65">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="64"  y="64"  width="288" height="288" rx="56" fill="url(#gd)" stroke="url(#gl)" stroke-width="14"/>
+  <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#gl)"/>
+  <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#sh)"/>
+</svg>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <!-- GOLD — transparent bg, icon mark only, 2:1. -->
+  <defs>
+    <linearGradient id="gl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#fef3c0"/>
+      <stop offset="30%"  stop-color="#fbbf24"/>
+      <stop offset="65%"  stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+    <linearGradient id="gd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#1a0800"/>
+    </linearGradient>
+    <radialGradient id="sh" cx="0.32" cy="0.25" r="0.6">
+      <stop offset="0%"   stop-color="#fffae0" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#fffae0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#d97706" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="512" cy="256" rx="280" ry="240" fill="url(#halo)"/>
+  <g transform="translate(302, 46) scale(0.82)">
+    <rect x="64"  y="64"  width="288" height="288" rx="56"
+          fill="url(#gd)" stroke="url(#gl)" stroke-width="16"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#gl)"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#sh)"/>
+  </g>
+</svg>

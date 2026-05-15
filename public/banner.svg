@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+  <defs>
+    <!-- Background: deep violet-black, no amber -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#0d0b18"/>
+      <stop offset="100%" stop-color="#08060f"/>
+    </linearGradient>
+    <!-- Violet atmosphere glow centred on the logo -->
+    <radialGradient id="glow" cx="230" cy="200" r="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7c3aed" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Logo gradients -->
+    <linearGradient id="vl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#c4b5fd"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="vd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#2e1065"/>
+      <stop offset="100%" stop-color="#09000f"/>
+    </linearGradient>
+    <radialGradient id="sh" cx="0.38" cy="0.3" r="0.65">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Wordmark gradient -->
+    <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#e0d9ff"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="400" fill="url(#bg)"/>
+  <rect width="1200" height="400" fill="url(#glow)"/>
+
+  <!-- Subtle dot grid — very low opacity -->
+  <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+    <circle cx="20" cy="20" r="1" fill="#7c3aed" opacity="0.18"/>
+  </pattern>
+  <rect width="1200" height="400" fill="url(#dots)"/>
+
+  <!-- Logo mark: source 512×512, scale to 280px tall → scale=0.547
+       centred vertically at y=60, left-padded at x=80 -->
+  <g transform="translate(80, 60) scale(0.547)">
+    <rect x="64"  y="64"  width="288" height="288" rx="56"
+          fill="url(#vd)" stroke="url(#vl)" stroke-width="14"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#vl)"/>
+    <rect x="160" y="160" width="288" height="288" rx="56" fill="url(#sh)"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="440" y="218"
+        font-family="Inter, -apple-system, ui-sans-serif, system-ui, sans-serif"
+        font-weight="800" font-size="100" letter-spacing="-3"
+        fill="url(#wg)">OVERFRAME</text>
+
+  <!-- Tagline -->
+  <text x="444" y="268"
+        font-family="Inter, -apple-system, ui-sans-serif, system-ui, sans-serif"
+        font-weight="500" font-size="22" letter-spacing="3"
+        fill="#7c6da8">THE OVERLAY BROWSER FOR PC GAMERS</text>
+
+  <!-- Sub-line -->
+  <text x="444" y="308"
+        font-family="Inter, -apple-system, ui-sans-serif, system-ui, sans-serif"
+        font-weight="400" font-size="17" letter-spacing="0.5"
+        fill="#4e4166">Wikis · trade tools · guides — pinned on top of any game.</text>
+</svg>
