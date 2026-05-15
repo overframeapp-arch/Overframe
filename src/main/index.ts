@@ -1,5 +1,9 @@
 import { app, BrowserWindow, Menu, nativeTheme } from 'electron'
-import updateElectronApp from 'update-electron-app'
+import _updateElectronAppImport from 'update-electron-app'
+// update-electron-app is ESM; Rollup may wrap it as { default: fn } in CJS bundles.
+const updateElectronApp: (...args: Parameters<typeof _updateElectronAppImport>) => void =
+  ((_updateElectronAppImport as unknown as { default: typeof _updateElectronAppImport }).default
+    ?? _updateElectronAppImport) as never
 
 /**
  * Squirrel.Windows event guard — must run before app.whenReady() so no window

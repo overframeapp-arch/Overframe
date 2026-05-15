@@ -4,7 +4,10 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    // update-electron-app is ESM-only; exclude it from externalization so
+    // Rollup can convert it to CJS during bundling instead of leaving a bare
+    // require() that returns { default: fn } at runtime.
+    plugins: [externalizeDepsPlugin({ exclude: ['update-electron-app'] })],
     resolve: {
       alias: {
         '@shared': resolve('src/shared')
