@@ -79,7 +79,8 @@
       "better-sqlite3",
       "electron",
       "electron-winstaller",
-      "esbuild"
+      "esbuild",
+      "uiohook-napi"
     ],
     "overrides": {
       "tar": ">=7.5.11"
