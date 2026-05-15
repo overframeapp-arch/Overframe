@@ -57,6 +57,10 @@ export class TrayManager {
     return path.join(process.resourcesPath, 'icons', 'tray.png')
   }
 
+  showBalloon(title: string, content: string): void {
+    this.tray?.displayBalloon({ title, content, iconType: 'none', noSound: false })
+  }
+
   dispose(): void {
     this.unsubProfileChange?.()
     this.unsubProfileChange = null

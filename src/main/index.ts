@@ -257,6 +257,15 @@ app.whenReady().then(() => {
 
   if (!process.argv.includes('--hidden')) overlay.show()
 
+  // On first run after install, show a tray balloon so the user knows the app
+  // is running and where to find it.
+  if (app.isPackaged && !store.get('settings').hasCompletedOnboarding) {
+    tray.showBalloon(
+      'Overframe is ready',
+      'Your overlay is open. Use the shortcut anytime to show or hide it.',
+    )
+  }
+
   sessionManager.startAutoSave(() => profiles!.getActive().id)
 
   memorySnapshotInterval = setInterval(() => {
