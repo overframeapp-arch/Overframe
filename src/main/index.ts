@@ -6,7 +6,7 @@ import updateElectronApp from 'update-electron-app'
  * is created during install / update / uninstall phases. When this returns
  * true the process is on its way to exit; skip all further initialisation.
  */
-import { handleSquirrelEvents } from './lifecycle/squirrel'
+import { handleSquirrelEvents, isFirstRun } from './lifecycle/squirrel'
 const isSquirrelEvent = handleSquirrelEvents()
 
 import { OverlayWindow } from './windows/OverlayWindow'
@@ -258,13 +258,19 @@ app.whenReady().then(() => {
 
   if (!process.argv.includes('--hidden')) overlay.show()
 
-  // On first run after install, show a tray balloon so the user knows the app
-  // is running and where to find it.
-  if (app.isPackaged && !store.get('settings').hasCompletedOnboarding) {
-    tray.showBalloon(
-      'Overframe is ready',
-      'Your overlay is open. Use the shortcut anytime to show or hide it.',
-    )
+  // On first run after fresh install, open the settings window immediately so
+  // the user sees a visible window rather than hunting for a tray icon.
+  // On subsequent launches (not firstrun), fall back to a tray balloon — Windows
+  // may suppress it, but it's best-effort.
+  if (app.isPackaged) {
+    if (isFirstRun()) {
+      popup!.openCentered()
+    } else if (!store.get('settings').hasCompletedOnboarding) {
+      tray.showBalloon(
+        'Overframe is ready',
+        'Your overlay is open. Use the shortcut anytime to show or hide it.',
+      )
+    }
   }
 
   sessionManager.startAutoSave(() => profiles!.getActive().id)

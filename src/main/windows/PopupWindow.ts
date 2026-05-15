@@ -123,6 +123,78 @@ export class PopupWindow {
     })
   }
 
+  /**
+   * Open the settings popup centered on the primary display.
+   * Unlike `open()`, it does not auto-close on blur — intended for first-run
+   * onboarding where the user needs to acknowledge the window themselves.
+   */
+  openCentered(): void {
+    if (this.win && !this.win.isDestroyed()) {
+      this.win.focus()
+      return
+    }
+
+    const W = POPUP_SIZES.settings.width
+    const H = POPUP_SIZES.settings.height
+    const wa = screen.getPrimaryDisplay().workArea
+    const x = Math.round(wa.x + (wa.width - W) / 2)
+    const y = Math.round(wa.y + (wa.height - H) / 2)
+
+    // Anchor coords relative to the overlay window origin, so PopupInit renders correctly.
+    const overlayBounds = this.overlayWin.getBounds()
+    const anchorX = x - overlayBounds.x + W
+    const anchorY = y - overlayBounds.y - 4
+
+    this.win = new BrowserWindow({
+      x,
+      y,
+      width: W,
+      height: H,
+      icon: resolveIcon(),
+      frame: false,
+      transparent: true,
+      backgroundColor: '#00000000',
+      hasShadow: true,
+      resizable: false,
+      movable: true,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      skipTaskbar: false,
+      show: false,
+      alwaysOnTop: true,
+      webPreferences: {
+        preload: path.join(__dirname, '../preload/index.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false,
+        webviewTag: false,
+      },
+    })
+
+    this.win.setAlwaysOnTop(true, 'screen-saver')
+
+    if (isDev && process.env['ELECTRON_RENDERER_URL']) {
+      void this.win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/popup.html`)
+    } else {
+      void this.win.loadFile(path.join(__dirname, '../renderer/popup.html'))
+    }
+
+    this.win.webContents.once('dom-ready', () => {
+      if (!this.win || this.win.isDestroyed()) return
+      this.win.webContents.send(IPC.PopupInit, {
+        type: 'settings',
+        data: { anchorX, anchorY } satisfies SettingsPopupPayload,
+      })
+      this.win.show()
+      this.win.focus()
+    })
+
+    this.win.on('closed', () => {
+      this.win = null
+    })
+  }
+
   close(): void {
     if (this.win && !this.win.isDestroyed()) {
       this.win.destroy()

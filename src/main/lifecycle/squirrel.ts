@@ -35,6 +35,15 @@ function runUpdater(args: string[]): Promise<void> {
   })
 }
 
+/**
+ * Returns true when the app was launched right after a fresh install
+ * (Squirrel fires `--squirrel-firstrun` once, before the normal boot).
+ * Use this to show an onboarding / first-run UI.
+ */
+export function isFirstRun(): boolean {
+  return process.platform === 'win32' && process.argv[1] === '--squirrel-firstrun'
+}
+
 /** Returns true when the launch was a Squirrel event and the app should quit. */
 export function handleSquirrelEvents(): boolean {
   if (process.platform !== 'win32') return false
