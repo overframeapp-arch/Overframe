@@ -3,10 +3,11 @@ import updateElectronApp from 'update-electron-app'
 
 /**
  * Squirrel.Windows event guard — must run before app.whenReady() so no window
- * is created during install / update / uninstall phases.
+ * is created during install / update / uninstall phases. When this returns
+ * true the process is on its way to exit; skip all further initialisation.
  */
 import { handleSquirrelEvents } from './lifecycle/squirrel'
-handleSquirrelEvents()
+const isSquirrelEvent = handleSquirrelEvents()
 
 import { OverlayWindow } from './windows/OverlayWindow'
 import { PopupWindow } from './windows/PopupWindow'
@@ -25,7 +26,7 @@ import { IPC } from '@shared/ipc'
 import { DEFAULT_SHORTCUTS, DEFAULT_PROFILE_ID, type Shortcuts } from '@shared/types'
 
 /** Single-instance lock — a second launch focuses the existing instance. */
-const gotLock = app.requestSingleInstanceLock()
+const gotLock = isSquirrelEvent ? true : app.requestSingleInstanceLock()
 if (!gotLock) app.quit()
 
 /** Last-resort safety net so an unhandled rejection doesn't silently kill the main process. */
