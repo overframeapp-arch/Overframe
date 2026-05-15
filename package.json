@@ -60,7 +60,7 @@
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "electron": "^33.0.0",
+    "electron": "^39.8.1",
     "electron-vite": "^2.3.0",
     "happy-dom": "^20.9.0",
     "lucide-react": "^0.451.0",
@@ -80,6 +80,9 @@
       "electron",
       "electron-winstaller",
       "esbuild"
-    ]
+    ],
+    "overrides": {
+      "tar": ">=7.5.11"
+    }
   }
 }
