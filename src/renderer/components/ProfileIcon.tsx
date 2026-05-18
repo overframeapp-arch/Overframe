@@ -7,15 +7,10 @@ function sanitizeIconUrl(url: string): string | undefined {
   const value = url.trim()
   if (!value) return undefined
 
-  // Allow only explicit relative paths.
-  if (/^(\/|\.\/|\.\.\/)/.test(value)) return value
-
-  // Allow only image data URLs.
-  if (/^data:/i.test(value)) return /^data:image\//i.test(value) ? value : undefined
-
   try {
     const parsed = new URL(value)
     if (!['http:', 'https:', 'file:', 'blob:'].includes(parsed.protocol)) return undefined
+    // Return the parser-normalized href, never the raw tainted input.
     return parsed.href
   } catch {
     return undefined
