@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { Mail, MessageCircle, Github, ShieldAlert } from 'lucide-react'
+import { Mail, MessageCircle, ShieldAlert } from 'lucide-react'
+import { GithubIcon } from '@/components/GithubIcon'
 import { SITE_CONFIG } from '@/lib/config'
 
 export const metadata: Metadata = {
@@ -37,7 +38,7 @@ const CHANNELS = [
     primary: false,
   },
   {
-    icon: Github,
+    icon: GithubIcon,
     title: 'GitHub — for contributors',
     description:
       'If you are a developer and want to contribute code, open a PR or browse the source, you are welcome on GitHub.',

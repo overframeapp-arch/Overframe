@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Github, MessageCircle, Heart, Mail } from 'lucide-react'
+import { MessageCircle, Heart, Mail } from 'lucide-react'
+import { GithubIcon } from '@/components/GithubIcon'
 import { SITE_CONFIG } from '@/lib/config'
 import { Logo } from './Logo'
 
@@ -56,7 +57,7 @@ export function Footer() {
                 aria-label="GitHub"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
               >
-                <Github size={16} />
+                <GithubIcon size={16} />
               </a>
               <a
                 href={SITE_CONFIG.links.discord}

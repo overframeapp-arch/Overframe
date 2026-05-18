@@ -1,4 +1,5 @@
-import { Github, Star, Users, Heart } from 'lucide-react'
+import { Star, Users, Heart } from 'lucide-react'
+import { GithubIcon } from '@/components/GithubIcon'
 import { SITE_CONFIG } from '@/lib/config'
 
 const STATS = [
@@ -33,7 +34,7 @@ export function SocialProof() {
           rel="noreferrer noopener"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
         >
-          <Github size={14} />
+          <GithubIcon size={14} />
           Star us on GitHub
         </a>
       </div>

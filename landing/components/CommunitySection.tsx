@@ -1,6 +1,7 @@
 'use client'
 
-import { MessageCircle, Github } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
+import { GithubIcon } from '@/components/GithubIcon'
 import { SITE_CONFIG } from '@/lib/config'
 import { useInView } from '@/lib/useInView'
 import { cn } from '@/lib/cn'
@@ -70,7 +71,7 @@ export function CommunitySection() {
               rel="noreferrer noopener"
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-7 py-3.5 text-base font-semibold transition-all duration-300 hover:scale-[1.02] hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <Github size={18} aria-hidden />
+              <GithubIcon size={18} aria-hidden />
               View on GitHub
             </a>
           </div>

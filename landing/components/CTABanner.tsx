@@ -1,4 +1,5 @@
-import { Download, Github } from 'lucide-react'
+import { Download } from 'lucide-react'
+import { GithubIcon } from '@/components/GithubIcon'
 import { SITE_CONFIG } from '@/lib/config'
 
 export function CTABanner() {
@@ -35,7 +36,7 @@ export function CTABanner() {
             rel="noreferrer noopener"
             className="btn-ghost"
           >
-            <Github size={16} aria-hidden />
+            <GithubIcon size={16} aria-hidden />
             View on GitHub
           </a>
         </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { Download, Github, ShieldCheck } from 'lucide-react'
+import { Download, ShieldCheck } from 'lucide-react'
+import { GithubIcon } from '@/components/GithubIcon'
 import { SITE_CONFIG } from '@/lib/config'
 
 export const metadata: Metadata = {
@@ -45,7 +46,7 @@ export default function DownloadPage() {
             rel="noreferrer noopener"
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-6 py-3.5 text-base font-semibold transition hover:bg-muted"
           >
-            <Github size={18} />
+            <GithubIcon size={18} />
             All releases on GitHub
           </a>
         </div>

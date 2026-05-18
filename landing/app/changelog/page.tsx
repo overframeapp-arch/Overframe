@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Github } from 'lucide-react'
+import { GithubIcon } from '@/components/GithubIcon'
 import { SITE_CONFIG } from '@/lib/config'
 
 export const metadata: Metadata = {
@@ -53,7 +53,7 @@ export default function ChangelogPage() {
           rel="noreferrer noopener"
           className="mt-6 inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2 text-sm font-medium transition hover:bg-muted"
         >
-          <Github size={15} />
+          <GithubIcon size={15} />
           Full release history
         </a>
       </header>
