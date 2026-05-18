@@ -33,12 +33,11 @@ jobs:
 
       # electron-forge make: runs electron-vite build internally, then
       # packages + creates the Squirrel installer and portable ZIP.
+      # To enable code signing, configure forge.config.ts and add secrets
+      # WINDOWS_CERT_FILE / WINDOWS_CERT_PASSWORD to the repo, then add an
+      # env: block referencing them here.
       - name: Make
         run: pnpm make
-        env:
-          # Code-signing secrets (uncomment when a certificate is configured in forge.config.ts):
-          # WINDOWS_CERT_FILE: ${{ secrets.WINDOWS_CERT_FILE }}
-          # WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
 
       # Upload all Squirrel artefacts + ZIP to the GitHub Release.
       #

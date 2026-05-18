@@ -25,8 +25,10 @@ export interface VisibleGame {
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 const MAX_PATH = 260
 
+// Each alternative is anchored: drive-letter paths only, directory names
+// bounded by backslashes so partial name matches cannot bypass the filter.
 const SYS_PATH_RE =
-  /^C:\\Windows\\|\\system32\\|\\syswow64\\|\\microsoft\.net\\|\\WindowsApps\\/i
+  /^[A-Za-z]:\\(?:Windows\\|.*\\(?:system32|syswow64|microsoft\.net|WindowsApps)\\)/i
 
 // ── Win32 type definitions ─────────────────────────────────────────────────────
 
@@ -47,15 +49,21 @@ const EnumWindowsProc = koffi.proto(
   'bool __stdcall EnumWindowsProc(void *hwnd, intptr lParam)'
 )
 
-const EnumWindows = user32.func(
-  'bool __stdcall EnumWindows(EnumWindowsProc *lpEnumFunc, intptr lParam)'
-)
+// koffi.pointer(EnumWindowsProc) references the proto directly so the variable
+// is consumed by TypeScript code, not just by a prototype string.
+const EnumWindows = user32.func('EnumWindows', 'bool', [
+  koffi.pointer(EnumWindowsProc),
+  'intptr',
+])
 const IsWindowVisible = user32.func(
   'bool __stdcall IsWindowVisible(void *hWnd)'
 )
-const GetWindowRect = user32.func(
-  'bool __stdcall GetWindowRect(void *hWnd, _Out_ RECT *lpRect)'
-)
+// koffi.out(koffi.pointer(RECT)) references RECT directly (equivalent to
+// '_Out_ RECT *' in a prototype string) so the struct variable is consumed.
+const GetWindowRect = user32.func('GetWindowRect', 'bool', [
+  'void *',
+  koffi.out(koffi.pointer(RECT)),
+])
 const GetWindowTextW = user32.func(
   'int __stdcall GetWindowTextW(void *hWnd, uint8_t *lpString, int nMaxCount)'
 )
