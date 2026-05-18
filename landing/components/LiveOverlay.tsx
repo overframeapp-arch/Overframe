@@ -18,11 +18,6 @@ const FG       = '#ebebeb'  // --foreground
 const MUTED_FG = '#757575'  // --muted-foreground
 const PRIMARY  = '#7c3aed'  // --primary
 
-// keep legacy aliases (no longer used but kept for safety)
-const APP_BG = BG
-const DIM    = MUTED_FG
-const MUTED  = MUTED_FG
-
 // ── Ziz avatar — inline SVG (replace with <img src="/ziz.jpg"> once saved to public/) ──
 
 function ZizAvatar({ size = 30 }: { size?: number }) {

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { DiscordIcon } from './icons/DiscordIcon'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DEFAULT_HOMEPAGE, DEFAULT_PROFILE_ID, SEARCH_ENGINES } from '@shared/types'
+import { DEFAULT_PROFILE_ID, SEARCH_ENGINES } from '@shared/types'
 import { useAppStore } from '../store/appStore'
 import { Input } from './ui/Input'
 import { cn } from '../lib/cn'

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { Settings } from '@shared/types'
 import { SEARCH_ENGINES, type SearchEngineId } from '@shared/types'
 import { useAppStore } from '../../store/appStore'

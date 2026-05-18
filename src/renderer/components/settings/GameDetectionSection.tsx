@@ -7,7 +7,7 @@ import {
   DEFAULT_NON_GAME_DIRS,
 } from '@shared/gameDefaults'
 import { useAppStore } from '../../store/appStore'
-import { InfoTip, Section, Check, StringListEditor } from './Layout'
+import { Section, Check, StringListEditor } from './Layout'
 
 function normaliseProcess(input: string): string {
   return input.trim().toLowerCase().replace(/\.exe$/i, '')
