@@ -38,7 +38,7 @@
     "better-sqlite3": "^12.0.0",
     "electron-store": "^8.2.0",
     "koffi": "^3.0.0",
-    "ps-list": "^7.2.0",
+    "ps-list": "^9.0.0",
     "uiohook-napi": "^1.5.5",
     "update-electron-app": "^3.0.0"
   },
