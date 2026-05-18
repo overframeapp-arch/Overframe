@@ -10,6 +10,13 @@ updates:
       # config). Migrate intentionally — do not auto-bump.
       - dependency-name: "tailwindcss"
         versions: [">=4.0.0"]
+      # electron-store v10+ and ps-list v8+ are ESM-only. The Electron main
+      # process builds as CJS (externalizeDepsPlugin) — require() of ESM fails
+      # at runtime. Migrate to ESM main process intentionally before bumping.
+      - dependency-name: "electron-store"
+        versions: [">=10.0.0"]
+      - dependency-name: "ps-list"
+        versions: [">=8.0.0"]
 
   - package-ecosystem: "npm"
     directory: "/landing"

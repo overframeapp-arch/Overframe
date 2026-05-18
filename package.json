@@ -36,9 +36,9 @@
     "@tanstack/react-virtual": "^3.13.24",
     "base64-js": "^1.5.1",
     "better-sqlite3": "^12.0.0",
-    "electron-store": "^11.0.2",
+    "electron-store": "^8.2.0",
     "koffi": "^3.0.0",
-    "ps-list": "^9.0.0",
+    "ps-list": "^7.2.0",
     "uiohook-napi": "^1.5.5",
     "update-electron-app": "^3.0.0"
   },
