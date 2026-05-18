@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write # required to create the GitHub Release
+
+jobs:
+  release:
+    name: Build & Publish
+    runs-on: windows-latest # Squirrel + native modules require Windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # electron-forge make: runs electron-vite build internally, then
+      # packages + creates the Squirrel installer and portable ZIP.
+      - name: Make
+        run: pnpm make
+        env:
+          # Code-signing secrets (uncomment when a certificate is configured in forge.config.ts):
+          # WINDOWS_CERT_FILE: ${{ secrets.WINDOWS_CERT_FILE }}
+          # WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+
+      # Upload all Squirrel artefacts + ZIP to the GitHub Release.
+      #
+      # update-electron-app / update.electronjs.org reads the GitHub Release
+      # for the tag that matches the running app version and serves:
+      #   - RELEASES        → update manifest
+      #   - *.nupkg         → delta / full update package
+      #   - Overframe-Setup.exe → full installer fallback
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Overframe ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/make/squirrel.windows/x64/Overframe-Setup.exe
+            dist/make/squirrel.windows/x64/RELEASES
+            dist/make/squirrel.windows/x64/*.nupkg
+            dist/make/zip/win32/x64/*.zip
