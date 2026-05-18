@@ -5,12 +5,20 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # Tailwind v4 is a breaking rewrite (no @tailwind directives, CSS-based
+      # config). Migrate intentionally — do not auto-bump.
+      - dependency-name: "tailwindcss"
+        versions: [">=4.0.0"]
 
   - package-ecosystem: "npm"
     directory: "/landing"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "tailwindcss"
+        versions: [">=4.0.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
