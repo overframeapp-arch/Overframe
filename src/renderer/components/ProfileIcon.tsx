@@ -2,22 +2,23 @@ import { useEffect, useState } from 'react'
 
 const DEFAULT_PROFILE_ID = 'default'
 
-/** Only allow safe URL schemes to prevent javascript: injection via user-controlled icon URLs. */
-function isSafeUrl(url: string): boolean {
+/** Normalize and allow only safe icon URL forms to prevent scriptable URL injection. */
+function sanitizeIconUrl(url: string): string | undefined {
   const value = url.trim()
-  if (!value) return false
+  if (!value) return undefined
 
   // Allow only explicit relative paths.
-  if (/^(\/|\.\/|\.\.\/)/.test(value)) return true
+  if (/^(\/|\.\/|\.\.\/)/.test(value)) return value
 
   // Allow only image data URLs.
-  if (/^data:/i.test(value)) return /^data:image\//i.test(value)
+  if (/^data:/i.test(value)) return /^data:image\//i.test(value) ? value : undefined
 
   try {
     const parsed = new URL(value)
-    return ['http:', 'https:', 'file:', 'blob:'].includes(parsed.protocol)
+    if (!['http:', 'https:', 'file:', 'blob:'].includes(parsed.protocol)) return undefined
+    return parsed.href
   } catch {
-    return false
+    return undefined
   }
 }
 
@@ -36,7 +37,7 @@ export function ProfileIcon({
   // Reset the error flag whenever the source URL changes — otherwise a profile
   // whose icon is later updated would stay stuck on the fallback initial.
   useEffect(() => { setErr(false) }, [iconUrl])
-  const safeIconUrl = iconUrl && isSafeUrl(iconUrl) ? iconUrl : undefined
+  const safeIconUrl = iconUrl ? sanitizeIconUrl(iconUrl) : undefined
   const src = safeIconUrl && !err ? safeIconUrl : (profileId === DEFAULT_PROFILE_ID ? './icons/icon.svg' : null)
   if (src) {
     return (
