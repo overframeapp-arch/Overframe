@@ -4,7 +4,21 @@ const DEFAULT_PROFILE_ID = 'default'
 
 /** Only allow safe URL schemes to prevent javascript: injection via user-controlled icon URLs. */
 function isSafeUrl(url: string): boolean {
-  return /^(https?:|file:|blob:|data:image\/|[./])/i.test(url)
+  const value = url.trim()
+  if (!value) return false
+
+  // Allow only explicit relative paths.
+  if (/^(\/|\.\/|\.\.\/)/.test(value)) return true
+
+  // Allow only image data URLs.
+  if (/^data:/i.test(value)) return /^data:image\//i.test(value)
+
+  try {
+    const parsed = new URL(value)
+    return ['http:', 'https:', 'file:', 'blob:'].includes(parsed.protocol)
+  } catch {
+    return false
+  }
 }
 
 export function ProfileIcon({
