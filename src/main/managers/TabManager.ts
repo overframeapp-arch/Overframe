@@ -1,6 +1,6 @@
 import { WebContentsView, app, session, Menu, MenuItem, clipboard } from 'electron'
 import { randomUUID } from 'node:crypto'
-import type { TabState, MemoryEntry, MemorySnapshot, DownloadEvent, DownloadEventState, SearchEngineId } from '@shared/types'
+import type { TabState, MemoryEntry, MemorySnapshot, DownloadEventState, SearchEngineId } from '@shared/types'
 import { DEFAULT_HOMEPAGE, SEARCH_ENGINES } from '@shared/types'
 import { store } from '../store'
 import type { OverlayWindow } from '../windows/OverlayWindow'

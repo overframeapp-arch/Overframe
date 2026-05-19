@@ -124,7 +124,7 @@ export function CollectionBar(): JSX.Element | null {
 const OVERFLOW_BTN_WIDTH = 42 // px reserved for the "+N" button
 const ITEM_GAP = 2            // gap-0.5 = 2px
 
-function LinksArea({ links, selected }: { links: Link[]; selected: Collection | undefined }): JSX.Element {
+function LinksArea({ links, selected: _selected }: { links: Link[]; selected: Collection | undefined }): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const sizerRef = useRef<HTMLDivElement>(null)
   const [visibleCount, setVisibleCount] = useState(links.length)

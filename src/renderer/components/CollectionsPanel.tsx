@@ -192,16 +192,6 @@ export function CollectionsPanel({
     await refresh()
   }
 
-  const handleSetIconUrl = async (id: string, url: string): Promise<void> => {
-    await window.aether.collections.setIconUrl(id, url.trim() || null)
-    await refresh()
-  }
-
-  const handleRenameCollection = async (id: string, name: string): Promise<void> => {
-    await window.aether.collections.rename(id, name)
-    await refresh()
-  }
-
   const handleReorderCollections = async (sourceId: string, targetId: string): Promise<void> => {
     if (sourceId === targetId) return
     const ids = profileCollections.map((c) => c.id)
