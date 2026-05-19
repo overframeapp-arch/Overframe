@@ -50,7 +50,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           name: Overframe ${{ github.ref_name }}
-          generate_release_notes: true
+          body: ""
           files: |
             dist/make/squirrel.windows/x64/Overframe-Setup.exe
             dist/make/squirrel.windows/x64/RELEASES
