@@ -22,6 +22,19 @@ updates:
         versions: [">=9.0.0"]
       - dependency-name: "ps-list"
         versions: [">=8.0.0"]
+      # TypeScript 6 — intentional migration needed (strict mode changes, etc.)
+      - dependency-name: "typescript"
+        versions: [">=6.0.0"]
+      # lucide-react v1 — major API breaking changes from 0.x
+      - dependency-name: "lucide-react"
+        versions: [">=1.0.0"]
+      # React 18→19 — intentional migration (async transitions, use(), etc.)
+      - dependency-name: "react"
+        versions: [">=19.0.0"]
+      - dependency-name: "react-dom"
+        versions: [">=19.0.0"]
+      - dependency-name: "@types/react"
+        versions: [">=19.0.0"]
 
   - package-ecosystem: "npm"
     directory: "/landing"
@@ -35,6 +48,14 @@ updates:
     ignore:
       - dependency-name: "tailwindcss"
         versions: [">=4.0.0"]
+      # ESLint 10 — intentional migration needed
+      - dependency-name: "eslint"
+        versions: [">=10.0.0"]
+      # React 18→19 — intentional migration
+      - dependency-name: "react-dom"
+        versions: [">=19.0.0"]
+      - dependency-name: "@types/react-dom"
+        versions: [">=19.0.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
