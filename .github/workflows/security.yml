@@ -34,6 +34,9 @@ jobs:
 
   codeql:
     name: CodeQL analysis
+    # Skip static analysis on Dependabot PRs — they only bump deps,
+    # not change code. The audit job above still checks for vulnerable packages.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       security-events: write

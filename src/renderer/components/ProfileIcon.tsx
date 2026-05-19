@@ -1,26 +1,6 @@
 import { useEffect, useState } from 'react'
-
-const DEFAULT_PROFILE_ID = 'default'
-
-/** Normalize and allow only safe icon URL forms to prevent scriptable URL injection. */
-function sanitizeIconUrl(url: string): string | undefined {
-  const value = url.trim()
-  if (!value) return undefined
-
-  // data:image/ URLs are produced by Electron's app.getFileIcon().toDataURL() and
-  // are safe as <img> src (images cannot execute scripts regardless of content type).
-  // Only image MIME types are allowed — data:text/html or data:application/* are rejected.
-  if (/^data:image\/[a-z+.-]+;base64,/.test(value)) return value
-
-  try {
-    const parsed = new URL(value)
-    if (!['http:', 'https:', 'file:', 'blob:'].includes(parsed.protocol)) return undefined
-    // Return the parser-normalized href, never the raw tainted input.
-    return parsed.href
-  } catch {
-    return undefined
-  }
-}
+import { DEFAULT_PROFILE_ID } from '@shared/types'
+import { sanitizeIconUrl } from '../lib/url'
 
 export function ProfileIcon({
   iconUrl,

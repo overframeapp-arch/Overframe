@@ -15,6 +15,7 @@ import {
 import { DEFAULT_PROFILE_ID } from '@shared/types'
 import type { Profile } from '@shared/types'
 import { cn } from '../lib/cn'
+import { sanitizeIconUrl } from '../lib/url'
 import { useAppStore } from '../store/appStore'
 import { useMissionsStore } from '../store/missionsStore'
 import { useDebounce } from '../hooks/useDebounce'
@@ -527,8 +528,8 @@ export function CollectionsPanel({
                   {isEditing ? (
                     <div className="px-3 py-2.5 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        {editCollIconUrl
-                          ? <img src={editCollIconUrl} alt="" className="h-5 w-5 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                        {sanitizeIconUrl(editCollIconUrl)
+                          ? <img src={sanitizeIconUrl(editCollIconUrl)} alt="" className="h-5 w-5 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                           : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted-foreground/10 flex items-center justify-center"><Globe size={10} className="text-muted-foreground/30" /></div>
                         }
                         <Input autoFocus aria-label="Collection name" value={editCollName} onChange={(e) => setEditCollName(e.target.value)}
