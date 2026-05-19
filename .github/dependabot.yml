@@ -4,7 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
+    groups:
+      # All non-breaking patch/minor updates in one PR.
+      npm-all:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     ignore:
       # Tailwind v4 is a breaking rewrite (no @tailwind directives, CSS-based
       # config). Migrate intentionally — do not auto-bump.
@@ -22,7 +27,11 @@ updates:
     directory: "/landing"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
+    groups:
+      landing-all:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     ignore:
       - dependency-name: "tailwindcss"
         versions: [">=4.0.0"]
@@ -31,3 +40,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
+    groups:
+      actions-all:
+        patterns: ["*"]
