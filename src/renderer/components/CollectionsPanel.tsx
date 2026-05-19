@@ -1,14 +1,12 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Ban,
   Check,
   ChevronLeft,
   ChevronRight,
+  Download,
   Globe,
   Pencil,
-  Pin,
   Plus,
-  RotateCcw,
   Search,
   Trash2,
   Upload,
@@ -26,9 +24,7 @@ import { Tooltip } from './ui/Tooltip'
 import { ProfileIcon } from './ProfileIcon'
 import { Favicon } from './collections/atoms'
 import { ProfileCreateForm, ProfileEditForm } from './collections/ProfileForms'
-import { CollectionActionsMenu } from './collections/Menus'
 import { LinksView } from './collections/LinksView'
-import { MoveLinkPicker } from './collections/MoveLinkPicker'
 import type { NavLevel } from './collections/types'
 
 interface CollectionsPanelProps {
@@ -45,7 +41,7 @@ export function CollectionsPanel({
   prefillNewProfile,
   onClose,
 }: CollectionsPanelProps = {}): JSX.Element {
-  const { collections, activeProfile, profiles, setCollections, setProfiles, setActiveProfile, tabs, activeTabId } = useAppStore()
+  const { collections, activeProfile, profiles, setCollections, setProfiles, setActiveProfile, tabs } = useAppStore()
   const { complete } = useMissionsStore()
 
   const [level, setLevel] = useState<NavLevel>(initialLevel ?? (prefillNewProfile ? 'profiles' : 'collections'))
@@ -55,7 +51,10 @@ export function CollectionsPanel({
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
   const [deleteProfileConfirmId, setDeleteProfileConfirmId] = useState<string | null>(null)
   const [showNewProfile, setShowNewProfile] = useState(!!prefillNewProfile)
-  const [excluded, setExcluded] = useState<string[]>([])
+
+  const [editingCollectionId, setEditingCollectionId] = useState<string | null>(null)
+  const [editCollName, setEditCollName] = useState('')
+  const [editCollIconUrl, setEditCollIconUrl] = useState('')
 
   const [showNewColl, setShowNewColl] = useState(false)
   const [newCollName, setNewCollName] = useState('')
@@ -63,8 +62,15 @@ export function CollectionsPanel({
   const [showImport, setShowImport] = useState(false)
   const [importValue, setImportValue] = useState('')
   const [deleteCollConfirmId, setDeleteCollConfirmId] = useState<string | null>(null)
+  const [exportCopiedPos, setExportCopiedPos] = useState<{ id: string; x: number; y: number } | null>(null)
+  const mousePos = useRef({ x: 0, y: 0 })
 
-  const [movingLink, setMovingLink] = useState<{ cid: string; lid: string } | null>(null)
+  useEffect(() => {
+    const handler = (e: MouseEvent): void => { mousePos.current = { x: e.clientX, y: e.clientY } }
+    window.addEventListener('mousemove', handler)
+    return () => window.removeEventListener('mousemove', handler)
+  }, [])
+
   const [draggedCollId, setDraggedCollId] = useState<string | null>(null)
   const [dragOverCollId, setDragOverCollId] = useState<string | null>(null)
 
@@ -86,6 +92,16 @@ export function CollectionsPanel({
   }, [activeProfile?.id, selectedProfileId])
 
   /**
+   * Sync selected collection with the CollectionBar's persisted choice when
+   * nothing is explicitly selected yet (initial open or after profile switch).
+   */
+  useEffect(() => {
+    if (!selectedProfileId || selectedCollectionId !== null || initialCollectionId) return
+    const stored = localStorage.getItem(`bookmarkBar:collectionId:${selectedProfileId}`)
+    if (stored) setSelectedCollectionId(stored)
+  }, [selectedProfileId, selectedCollectionId, initialCollectionId])
+
+  /**
    * Drop transient confirmation/edit state when navigating between levels so it
    * doesn't reappear unexpectedly when the user returns.
    */
@@ -93,6 +109,7 @@ export function CollectionsPanel({
     setDeleteProfileConfirmId(null)
     setDeleteCollConfirmId(null)
     setEditingProfileId(null)
+    setEditingCollectionId(null)
   }, [level])
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -105,7 +122,7 @@ export function CollectionsPanel({
   }, [setProfiles, setActiveProfile])
 
   const refreshExcluded = useCallback(async (): Promise<void> => {
-    setExcluded(await window.aether.profiles.getExcluded())
+    // kept for API compatibility but excluded list is managed in Settings
   }, [])
 
   useEffect(() => { void refreshExcluded() }, [refreshExcluded])
@@ -146,18 +163,22 @@ export function CollectionsPanel({
     await refreshProfiles()
   }
 
-  const handleUnexclude = async (name: string): Promise<void> => {
-    await window.aether.profiles.unexclude(name)
-    await Promise.all([refreshExcluded(), refreshProfiles()])
+  const handleSaveCollectionEdit = async (id: string): Promise<void> => {
+    const trimmed = editCollName.trim()
+    if (!trimmed) return
+    await window.aether.collections.rename(id, trimmed)
+    await window.aether.collections.setIconUrl(id, editCollIconUrl.trim() || null)
+    setEditingCollectionId(null)
+    await refresh()
   }
 
   // ── Collection actions ───────────────────────────────────────────────────
 
   const handleCreateCollection = async (): Promise<void> => {
     if (!newCollName.trim() || !selectedProfileId) return
-    const profileId = selectedProfileId === 'shared' ? 'shared' : selectedProfileId
+    const profileId = selectedProfileId
     await window.aether.collections.create({ name: newCollName.trim(), profileId, source: 'user', iconUrl: newCollIconUrl.trim() || undefined })
-    complete('import-collection')
+    complete('create-collection')
     setNewCollName('')
     setNewCollIconUrl('')
     setShowNewColl(false)
@@ -201,14 +222,19 @@ export function CollectionsPanel({
 
   const handleExport = async (id: string): Promise<void> => {
     const b64 = await window.aether.collections.export(id)
-    if (b64) await navigator.clipboard.writeText(b64)
+    if (!b64) return
+    complete('export-collection')
+    const { x, y } = mousePos.current
+    setExportCopiedPos({ id, x, y })
+    setTimeout(() => setExportCopiedPos(null), 2000)
+    try { await navigator.clipboard.writeText(b64) } catch { /* clipboard may fail if window loses focus */ }
   }
 
   const handleImport = async (): Promise<void> => {
     if (!importValue.trim() || !selectedProfileId) return
-    const profileId = selectedProfileId === 'shared' ? 'shared' : selectedProfileId
+    const profileId = selectedProfileId
     await window.aether.collections.import(importValue.trim(), profileId)
-    complete('import-collection')
+    complete('export-collection')
     setImportValue('')
     setShowImport(false)
     await refresh()
@@ -226,22 +252,8 @@ export function CollectionsPanel({
     await refresh()
   }
 
-  const handleTogglePin = async (cid: string, lid: string): Promise<void> => {
-    await window.aether.collections.togglePin(cid, lid)
-    await refresh()
-  }
-
-  const handleRenameLink = async (cid: string, lid: string, title: string): Promise<void> => {
-    await window.aether.collections.updateLink(cid, lid, { title })
-    await refresh()
-  }
-
-  const handleMoveLink = async (fromCid: string, lid: string, toCid: string): Promise<void> => {
-    const link = collections.find((c) => c.id === fromCid)?.links.find((l) => l.id === lid)
-    if (!link) return
-    await window.aether.collections.addLink(toCid, { title: link.title, url: link.url, note: link.note, pinned: link.pinned, favicon: link.favicon })
-    await window.aether.collections.removeLink(fromCid, lid)
-    setMovingLink(null)
+  const handleEditLink = async (cid: string, lid: string, title: string, url: string): Promise<void> => {
+    await window.aether.collections.updateLink(cid, lid, { title, url })
     await refresh()
   }
 
@@ -249,15 +261,9 @@ export function CollectionsPanel({
 
   // ── Derived data ─────────────────────────────────────────────────────────
 
-  const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? null, [tabs, activeTabId])
-  const currentTab = useMemo(() =>
-    activeTab ? { title: activeTab.title || activeTab.url, url: activeTab.url, favicon: activeTab.favicon } : null,
-    [activeTab]
-  )
-
   const profileCollections = useMemo(() => {
     if (!selectedProfileId) return []
-    const all = collections.filter((c) => c.profileId === selectedProfileId || (selectedProfileId !== 'shared' && c.profileId === 'shared'))
+    const all = collections.filter((c) => c.profileId === selectedProfileId)
     if (!selectedCollectionId) return all
     const selected = all.find((c) => c.id === selectedCollectionId)
     if (!selected) return all
@@ -291,6 +297,11 @@ export function CollectionsPanel({
   }, [sortedProfiles, debouncedProfileSearch])
 
   const isSearching = debouncedQuery.trim().length > 0
+  const filteredCollections = useMemo(() => {
+    if (!isSearching || level !== 'collections') return profileCollections
+    const q = debouncedQuery.toLowerCase()
+    return profileCollections.filter((c) => c.name.toLowerCase().includes(q))
+  }, [isSearching, level, debouncedQuery, profileCollections])
   const searchResults = useMemo(() => {
     if (!isSearching) return []
     const q = debouncedQuery.toLowerCase()
@@ -302,7 +313,7 @@ export function CollectionsPanel({
   }, [isSearching, debouncedQuery, profileCollections])
 
   const navBack = useCallback((): void => {
-    if (level === 'links') { setLevel('collections'); setSelectedCollectionId(null) }
+    if (level === 'links') { setLevel('collections') }
     else if (level === 'collections') { setLevel('profiles') }
   }, [level])
 
@@ -332,7 +343,7 @@ export function CollectionsPanel({
               <button type="button" onClick={() => setLevel('profiles')} aria-label="Back to profiles"
                 className="text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors shrink-0">Profiles</button>
               <ChevronRight size={10} className="text-muted-foreground/30 shrink-0" aria-hidden="true" />
-              <button type="button" onClick={() => { setLevel('collections'); setSelectedCollectionId(null) }}
+              <button type="button" onClick={() => { setLevel('collections') }}
                 aria-label={`Back to ${selectedProfile?.name ?? 'profile'} collections`}
                 className="text-muted-foreground/60 hover:text-muted-foreground transition-colors truncate shrink-0 max-w-[70px]">
                 {selectedProfile?.name ?? '—'}
@@ -355,10 +366,10 @@ export function CollectionsPanel({
           <div className="relative">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" aria-hidden="true" />
             <Input
-              aria-label={level === 'links' ? 'Search links' : 'Search links in profile'}
+              aria-label={level === 'links' ? 'Search links' : 'Search collections'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={level === 'links' ? 'Search links…' : 'Search in profile…'}
+              placeholder={level === 'links' ? 'Search links…' : 'Search collections…'}
               className="pl-7 h-7 text-xs"
             />
             {searchQuery && (
@@ -412,24 +423,25 @@ export function CollectionsPanel({
                         aria-current={isActive ? 'true' : undefined}
                         className="group w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 focus-visible:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring text-left"
                         onClick={() => void handleSelectProfile(p.id)}>
-                        <ProfileIcon iconUrl={p.iconUrl} name={p.name} size={20} />
+                        <ProfileIcon iconUrl={p.iconUrl} name={p.name} size={20} profileId={p.id} />
                         <div className="flex-1 min-w-0">
                           <div className={cn('text-[12px] truncate', isActive && 'text-primary font-medium')}>{p.name}</div>
                           <div className="text-[10px] text-muted-foreground/60 truncate">
                             {collCount} collection{collCount !== 1 ? 's' : ''}
-                            {p.processNames.length > 0 && ` · ${p.processNames.join(', ')}`}
                           </div>
                         </div>
                         {isActive && <Check size={12} className="text-primary shrink-0" aria-hidden="true" />}
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <Tooltip label="Edit profile">
-                            <Button size="icon" variant="ghost" aria-label={`Edit ${p.name}`} className="h-6 w-6"
-                              onClick={() => setEditingProfileId(p.id)}>
-                              <Pencil size={11} aria-hidden="true" />
-                            </Button>
-                          </Tooltip>
+                        <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                           {p.id !== DEFAULT_PROFILE_ID && (
-                            <Tooltip label="Delete profile">
+                            <Tooltip label="Edit">
+                              <Button size="icon" variant="ghost" aria-label={`Edit ${p.name}`} className="h-6 w-6"
+                                onClick={() => setEditingProfileId(p.id)}>
+                                <Pencil size={11} aria-hidden="true" />
+                              </Button>
+                            </Tooltip>
+                          )}
+                          {p.id !== DEFAULT_PROFILE_ID && (
+                            <Tooltip label="Delete">
                               <Button size="icon" variant="ghost" aria-label={`Delete ${p.name}`}
                                 className="h-6 w-6 hover:text-destructive"
                                 onClick={() => setDeleteProfileConfirmId(p.id)}>
@@ -478,107 +490,112 @@ export function CollectionsPanel({
                 </li>
               )
             })}
-            <li>
-              <button type="button" aria-label="Open global collections (shared across all profiles)"
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 cursor-pointer border-b border-border/40 focus-visible:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring text-left"
-                onClick={() => { setSelectedProfileId('shared'); setLevel('collections'); setSearchQuery('') }}>
-                <Globe size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] truncate">Global collections</div>
-                  <div className="text-[10px] text-muted-foreground/60">Shared across all profiles</div>
-                </div>
-                <ChevronRight size={12} className="text-muted-foreground/30 shrink-0" aria-hidden="true" />
-              </button>
-            </li>
-            <li>
-              {showNewProfile ? (
-                <ProfileCreateForm
-                  onSave={handleCreateProfile}
-                  onCancel={() => setShowNewProfile(false)}
-                  initialName={prefillNewProfile?.name}
-                  initialProcessName={prefillNewProfile?.processName}
-                />
-              ) : (
-                <button type="button" aria-label="Create a new profile" onClick={() => setShowNewProfile(true)}
-                  className="w-full flex items-center gap-2 h-9 px-3 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
-                  <Plus size={13} aria-hidden="true" /> New profile
-                </button>
-              )}
-            </li>
-            {excluded.length > 0 && (
-              <li>
-                <div className="flex items-center gap-1.5 px-3 pt-3 pb-1 border-t border-border/40">
-                  <Ban size={11} className="text-muted-foreground/50 shrink-0" aria-hidden="true" />
-                  <span className="text-[10px] uppercase tracking-[0.08em] font-semibold text-muted-foreground/50">Excluded from detection</span>
-                </div>
-                <ul role="list" aria-label="Excluded processes">
-                  {excluded.map((name) => (
-                    <li key={name} className="group/excl flex items-center gap-2 px-3 py-2 border-b border-border/30">
-                      <span className="text-[12px] flex-1 truncate text-muted-foreground">{name}</span>
-                      <Tooltip label="Re-enable detection">
-                        <button type="button" aria-label={`Re-enable detection for ${name}`}
-                          onClick={() => void handleUnexclude(name)}
-                          className="h-6 w-6 flex items-center justify-center rounded opacity-0 group-hover/excl:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all shrink-0">
-                          <RotateCcw size={11} aria-hidden="true" />
-                        </button>
-                      </Tooltip>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            )}
           </ul>
+
+          <div className="border-t border-border/30 shrink-0">
+            {showNewProfile ? (
+              <ProfileCreateForm
+                onSave={handleCreateProfile}
+                onCancel={() => setShowNewProfile(false)}
+                initialName={prefillNewProfile?.name}
+                initialProcessName={prefillNewProfile?.processName}
+              />
+            ) : (
+              <button type="button" aria-label="Create a new profile" onClick={() => setShowNewProfile(true)}
+                className="w-full flex items-center gap-2 h-9 px-3 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
+                <Plus size={13} aria-hidden="true" /> New profile
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {level === 'collections' && !isSearching && (
+      {level === 'collections' && (
         <div className="flex flex-col flex-1 min-h-0">
           <ul className="flex-1 overflow-y-auto" role="list" aria-label="Collections">
-            {profileCollections.length === 0 && !showNewColl && (
+            {filteredCollections.length === 0 && !showNewColl && (
               <li className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground/50">
-                <Globe size={20} aria-hidden="true" />
-                <p className="text-[11px]">No collections yet.</p>
+                {isSearching
+                  ? <p className="text-[11px]">No collections match &laquo;{debouncedQuery}&raquo;.</p>
+                  : <><Globe size={20} aria-hidden="true" /><p className="text-[11px]">No collections yet.</p></>
+                }
               </li>
             )}
-            {profileCollections.map((c) => {
-              const isShared = c.profileId === 'shared'
+            {filteredCollections.map((c) => {
               const isSelected = c.id === selectedCollectionId
               const isDragOver = dragOverCollId === c.id && draggedCollId !== c.id
+              const isEditing = editingCollectionId === c.id
               return (
                 <li key={c.id}
-                  draggable={c.source === 'user'}
+                  draggable={!isEditing && c.source === 'user'}
                   onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedCollId(c.id) }}
                   onDragOver={(e) => { e.preventDefault(); if (draggedCollId && draggedCollId !== c.id) setDragOverCollId(c.id) }}
                   onDragLeave={() => setDragOverCollId(null)}
                   onDrop={(e) => { e.preventDefault(); if (draggedCollId && draggedCollId !== c.id) void handleReorderCollections(draggedCollId, c.id); setDraggedCollId(null); setDragOverCollId(null) }}
                   onDragEnd={() => { setDraggedCollId(null); setDragOverCollId(null) }}
-                  className={cn(isDragOver && 'border-t-2 border-primary')}>
-                  <button type="button"
-                    aria-label={`Open ${c.name}${isShared ? ' (global)' : ''} — ${c.links.length} link${c.links.length !== 1 ? 's' : ''}`}
-                    className={cn('group w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 border-b border-border/40 focus-visible:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring text-left', isSelected && 'bg-muted/20', draggedCollId === c.id && 'opacity-50')}
-                    onClick={() => { setSelectedCollectionId(c.id); setLevel('links') }}>
-                    {c.iconUrl
-                      ? <img src={c.iconUrl} alt="" className="h-5 w-5 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                      : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted-foreground/10 flex items-center justify-center"><Globe size={10} className="text-muted-foreground/30" /></div>
-                    }
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn('text-[12px] truncate', isSelected && 'text-primary font-medium')}>{c.name}</span>
-                        {isShared && <span className="text-[9px] text-primary bg-primary/15 px-1 rounded shrink-0">global</span>}
+                  className={cn('border-b border-border/40', isDragOver && 'border-t-2 border-primary')}>
+                  {isEditing ? (
+                    <div className="px-3 py-2.5 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        {editCollIconUrl
+                          ? <img src={editCollIconUrl} alt="" className="h-5 w-5 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                          : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted-foreground/10 flex items-center justify-center"><Globe size={10} className="text-muted-foreground/30" /></div>
+                        }
+                        <Input autoFocus aria-label="Collection name" value={editCollName} onChange={(e) => setEditCollName(e.target.value)}
+                          placeholder="Collection name…" className="h-7 text-xs flex-1"
+                          onKeyDown={(e) => { if (e.key === 'Enter') void handleSaveCollectionEdit(c.id); if (e.key === 'Escape') setEditingCollectionId(null) }} />
                       </div>
-                      <div className="text-[10px] text-muted-foreground/60">{c.links.length} link{c.links.length !== 1 ? 's' : ''}</div>
+                      <Input aria-label="Icon URL" value={editCollIconUrl} onChange={(e) => setEditCollIconUrl(e.target.value)}
+                        placeholder="Icon URL (optional)" className="h-6 text-[11px]"
+                        onKeyDown={(e) => { if (e.key === 'Enter') void handleSaveCollectionEdit(c.id); if (e.key === 'Escape') setEditingCollectionId(null) }} />
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => void handleSaveCollectionEdit(c.id)}
+                          className="flex-1 h-7 rounded text-[12px] bg-primary/15 text-primary hover:bg-primary/25 transition-colors">Save</button>
+                        <button type="button" onClick={() => setEditingCollectionId(null)}
+                          className="flex-1 h-7 rounded text-[12px] text-muted-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <CollectionActionsMenu
-                        collection={c}
-                        onRename={() => { setSelectedCollectionId(c.id); setLevel('links') }}
-                        onSetIcon={() => { setSelectedCollectionId(c.id); setLevel('links') }}
-                        onExport={() => void handleExport(c.id)}
-                        onDelete={() => setDeleteCollConfirmId(c.id)}
-                      />
-                    </div>
-                    <ChevronRight size={12} className="text-muted-foreground/30 shrink-0" aria-hidden="true" />
-                  </button>
+                  ) : (
+                    <button type="button"
+                      aria-label={`Open ${c.name} — ${c.links.length} link${c.links.length !== 1 ? 's' : ''}`}
+                      className={cn('w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 focus-visible:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring text-left', isSelected && 'bg-muted/20', draggedCollId === c.id && 'opacity-50')}
+                      onClick={() => { setSelectedCollectionId(c.id); setLevel('links') }}>
+                      {c.iconUrl
+                        ? <img src={c.iconUrl} alt="" className="h-5 w-5 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                        : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted-foreground/10 flex items-center justify-center"><Globe size={10} className="text-muted-foreground/30" /></div>
+                      }
+                      <div className="flex-1 min-w-0">
+                        <span className={cn('text-[12px] truncate block', isSelected && 'text-primary font-medium')}>{c.name}</span>
+                        <div className="text-[10px] text-muted-foreground/60">{c.links.length} link{c.links.length !== 1 ? 's' : ''}</div>
+                      </div>
+                      {isSelected && <Check size={12} className="text-primary shrink-0" aria-hidden="true" />}
+                      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {c.source === 'user' && (
+                          <Tooltip label="Edit">
+                            <Button size="icon" variant="ghost" aria-label={`Edit ${c.name}`} className="h-6 w-6"
+                              onClick={() => { setEditingCollectionId(c.id); setEditCollName(c.name); setEditCollIconUrl(c.iconUrl ?? '') }}>
+                              <Pencil size={11} aria-hidden="true" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                        <Tooltip label="Export">
+                          <Button size="icon" variant="ghost" aria-label={`Export ${c.name}`} className="h-6 w-6"
+                            onClick={() => void handleExport(c.id)}>
+                            <Download size={11} aria-hidden="true" />
+                          </Button>
+                        </Tooltip>
+                        {c.source === 'user' && (
+                          <Tooltip label="Delete">
+                            <Button size="icon" variant="ghost" aria-label={`Delete ${c.name}`} className="h-6 w-6 hover:text-destructive"
+                              onClick={() => setDeleteCollConfirmId(c.id)}>
+                              <Trash2 size={11} aria-hidden="true" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                      </div>
+                      <ChevronRight size={12} className="text-muted-foreground/30 shrink-0" aria-hidden="true" />
+                    </button>
+                  )}
                   {deleteCollConfirmId === c.id && (
                     <div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 border-b border-destructive/20" role="alert">
                       <span className="text-[11px] flex-1">Delete &laquo;{c.name}&raquo;?</span>
@@ -635,29 +652,17 @@ export function CollectionsPanel({
         <div className="flex-1 min-h-0">
           <LinksView
             collection={selectedCollection}
-            currentTab={currentTab}
-            pinnedLinks={profileCollections.flatMap((c) =>
-              c.links.filter((l) => l.pinned && c.id !== selectedCollection.id).map((l) => ({ ...l, collectionId: c.id, collectionName: c.name }))
-            )}
+            tabs={tabs}
             onOpen={handleOpen}
             onAddLink={(link) => void handleAddLink(selectedCollection.id, link)}
-            onRenameLink={(lid, title) => void handleRenameLink(selectedCollection.id, lid, title)}
-            onTogglePin={(lid) => void handleTogglePin(selectedCollection.id, lid)}
+            onEditLink={(lid, title, url) => void handleEditLink(selectedCollection.id, lid, title, url)}
             onRemoveLink={(lid) => void handleRemoveLink(selectedCollection.id, lid)}
-            onMoveLink={(lid) => setMovingLink({ cid: selectedCollection.id, lid })}
             onReorderLinks={(ids) => void handleReorderLinks(selectedCollection.id, ids)}
-            onRenameCollection={(name) => void handleRenameCollection(selectedCollection.id, name)}
-            onSetIconUrl={(url) => void handleSetIconUrl(selectedCollection.id, url)}
-            onExport={() => void handleExport(selectedCollection.id)}
-            onDelete={() => setDeleteCollConfirmId(selectedCollection.id)}
-            deleteConfirming={deleteCollConfirmId === selectedCollection.id}
-            onDeleteConfirm={() => void handleDeleteCollection(selectedCollection.id)}
-            onDeleteCancel={() => setDeleteCollConfirmId(null)}
           />
         </div>
       )}
 
-      {isSearching && level !== 'profiles' && (
+      {isSearching && level === 'links' && (
         <div className="flex-1 overflow-y-auto p-1.5">
           <p className="sr-only" role="status" aria-live="polite">
             {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{debouncedQuery}"
@@ -675,13 +680,6 @@ export function CollectionsPanel({
                     </div>
                     <div className="text-[10px] text-muted-foreground truncate">{l.collectionName}</div>
                   </button>
-                  <Tooltip label={l.pinned ? 'Unpin' : 'Pin to quick-add'}>
-                    <Button size="icon" variant="ghost" aria-label={l.pinned ? `Unpin ${l.title}` : `Pin ${l.title}`} aria-pressed={l.pinned}
-                      className={cn('h-5 w-5', l.pinned ? 'text-primary' : 'opacity-0 group-hover:opacity-60')}
-                      onClick={() => void handleTogglePin(l.collectionId, l.id)}>
-                      <Pin size={9} fill={l.pinned ? 'currentColor' : 'none'} aria-hidden="true" />
-                    </Button>
-                  </Tooltip>
                   <Tooltip label="Remove link">
                     <Button size="icon" variant="ghost" aria-label={`Remove ${l.title}`}
                       className="h-5 w-5 hover:text-destructive opacity-0 group-hover:opacity-60"
@@ -696,12 +694,16 @@ export function CollectionsPanel({
         </div>
       )}
 
-      {movingLink && (
-        <MoveLinkPicker
-          collections={collections.filter((c) => c.id !== movingLink.cid)}
-          onMove={(toCid) => void handleMoveLink(movingLink.cid, movingLink.lid, toCid)}
-          onCancel={() => setMovingLink(null)}
-        />
+      {exportCopiedPos && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{ left: exportCopiedPos.x, top: exportCopiedPos.y - 36 }}
+          className="fixed z-[9999] pointer-events-none -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-background border border-border shadow-lg text-[11px] text-foreground whitespace-nowrap"
+        >
+          <Check size={11} className="text-green-500 shrink-0" aria-hidden="true" />
+          Copied to clipboard
+        </div>
       )}
     </div>
   )

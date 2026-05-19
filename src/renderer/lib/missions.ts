@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Globe, Gamepad2, Bookmark, Package, MousePointer2, Swords } from 'lucide-react'
+import { Globe, Gamepad2, Bookmark, Package, MousePointer2, Swords, ArrowLeftRight } from 'lucide-react'
 import { DiscordIcon } from '../components/icons/DiscordIcon'
 
 export interface Mission {
@@ -46,17 +46,23 @@ export const MISSIONS: Mission[] = [
     desc: 'Click the ★ star in the address bar to save the current page to a collection.',
   },
   {
-    id: 'import-collection',
+    id: 'create-collection',
     icon: Package,
     title: 'Create a collection',
-    desc: 'Create or import a new collection from the collections panel.',
+    desc: 'Create a new collection from the collections panel.',
+  },
+  {
+    id: 'export-collection',
+    icon: ArrowLeftRight,
+    title: 'Import or export a collection',
+    desc: 'Export one of your collections as a shareable link, or import one from a link.',
   },
   {
     id: 'join-discord',
     icon: DiscordIcon,
-    title: 'Visit our Discord',
+    title: 'Join our Discord',
     desc: 'Open Discord in a tab to join the community.',
     hint: 'discord.gg/A2KPZn8WNd',
-    hintUrl: 'https://discord.gg/A2KPZn8WNd',
+    hintUrl: 'https://discord.com/channels/1501993110291349584/1501993222908674109',
   },
 ]

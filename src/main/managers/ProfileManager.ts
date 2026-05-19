@@ -27,7 +27,7 @@ import {
   VISIBLE_GAMES_CACHE_GRACE_MS,
   type GameUndetectedListener,
   type ProfileAutoDetectedListener,
-  type ProfileAutoReturnedToDefaultListener,
+  type ProfileAutoGameClosedListener,
   type ProfileBeforeSwitchListener,
   type ProfileChangeListener,
   type ProfileDataChangeListener,
@@ -36,7 +36,7 @@ import {
 export type {
   GameUndetectedListener,
   ProfileAutoDetectedListener,
-  ProfileAutoReturnedToDefaultListener,
+  ProfileAutoGameClosedListener,
   ProfileBeforeSwitchListener,
   ProfileChangeListener,
   ProfileDataChangeListener,
@@ -58,11 +58,17 @@ export class ProfileManager {
   private beforeSwitchListeners = new Set<ProfileBeforeSwitchListener>()
   private dataChangeListeners = new Set<ProfileDataChangeListener>()
   private autoDetectedListeners = new Set<ProfileAutoDetectedListener>()
-  private autoReturnedListeners = new Set<ProfileAutoReturnedToDefaultListener>()
+  private autoGameClosedListeners = new Set<ProfileAutoGameClosedListener>()
   private gameUndetectedListeners = new Set<GameUndetectedListener>()
   private polling = false
   private currentPollIntervalMs = PROCESS_POLL_INTERVAL_MS
   private manualOverride = false
+  /**
+   * The profile ID that was last auto-switched to for the current game session.
+   * If the user manually changes away while the game is still running, we skip
+   * forcing them back — their choice is respected until the game closes.
+   */
+  private activeGameSessionId: string | null = null
   /** Keys `processname|exepath` already auto-created this session. */
   private autoCreatedKeys = new Set<string>()
   private lastAutoDetectAt = 0
@@ -250,10 +256,10 @@ export class ProfileManager {
     }
   }
 
-  onAutoReturnedToDefault(cb: ProfileAutoReturnedToDefaultListener): () => void {
-    this.autoReturnedListeners.add(cb)
+  onAutoGameClosed(cb: ProfileAutoGameClosedListener): () => void {
+    this.autoGameClosedListeners.add(cb)
     return () => {
-      this.autoReturnedListeners.delete(cb)
+      this.autoGameClosedListeners.delete(cb)
     }
   }
 
@@ -337,17 +343,21 @@ export class ProfileManager {
 
       let matches = buildMatches()
 
-      // Exe-sharing disambiguation: when the cache is stale and 2+ profiles matched on
-      // the same process name (e.g. PoE1/PoE2 both use pathofexile.exe), priority alone
-      // would pick the wrong one. Do an awaited getVisibleGames() scan right now so we
-      // have accurate exePath data before selecting. Only fires when genuinely ambiguous.
-      if (!cacheIsFresh && matches.length > 1) {
-        const hasSharedNorm = matches.some((m) =>
+      // ── Exe-sharing disambiguation ──────────────────────────────────────────
+      // When multiple profiles share the same process name (e.g. PoE1/PoE2 both
+      // use PathOfExile.exe), sorting by priority alone picks the wrong one.
+      // We need a live getVisibleGames() scan to get the actual exe path from the
+      // OS window list, then re-filter so only the correct profile survives.
+      //
+      // Returns true when ≥2 candidates collide on the same normalised process name.
+      const hasAmbiguousSharedName = (candidates: Profile[]): boolean =>
+        candidates.length > 1 &&
+        candidates.some((m) =>
           m.processNames.some((pn) => {
             const norm = normalizeProcessName(pn)
             return (
               names.has(norm) &&
-              matches.some(
+              candidates.some(
                 (other) =>
                   other.id !== m.id &&
                   other.processNames.some((opn) => normalizeProcessName(opn) === norm),
@@ -355,40 +365,67 @@ export class ProfileManager {
             )
           }),
         )
-        if (hasSharedNorm) {
-          try {
-            const games = await getVisibleGames()
-            this.refreshVisibleGamesCache(games)
-            cacheIsFresh = true
-            matches = buildMatches()
-          } catch {
-            // best-effort — fall through with ambiguous matches, priority decides
+
+      if (hasAmbiguousSharedName(matches)) {
+        // Always do a fresh scan — the cache may pre-date this launch and lack
+        // the exe path needed to distinguish the correct profile.
+        try {
+          const games = await getVisibleGames()
+          this.refreshVisibleGamesCache(games)
+          cacheIsFresh = true
+          matches = buildMatches()
+        } catch {
+          // best-effort — fall through
+        }
+
+        if (hasAmbiguousSharedName(matches)) {
+          // Still ambiguous after a live scan.
+          // If at least one candidate declares exePaths, disambiguation CAN work
+          // once the game window becomes visible (still loading). Defer this poll
+          // cycle and invalidate the cache so the next poll re-scans immediately.
+          // If no candidate declares exePaths, we can't disambiguate by exe path
+          // at all — fall through and let priority decide (existing behaviour).
+          const canDisambiguateByExe = matches.some((m) => (m.exePaths?.length ?? 0) > 0)
+          if (canDisambiguateByExe) {
+            this.visibleGamesCacheAt = 0 // force fresh scan next poll
+            return
           }
         }
       }
 
       if (matches.length > 0) {
-        this.manualOverride = false
         const current = this.getActive()
         const next = matches.sort((a, b) => b.priority - a.priority)[0]
-        if (next.id !== current.id) {
-          const matchedPn = next.processNames.find((pn) => names.has(normalizeProcessName(pn)))
-          const matchedEntries = matchedPn ? (this.visibleGamesCache.get(normalizeProcessName(matchedPn)) ?? []) : []
-          // Prefer the entry whose exePath matches this profile so the notification
-          // appears on the correct screen when two games share a process name.
-          const cachedGame =
-            (next.exePaths?.length
-              ? matchedEntries.find((e) => next.exePaths!.some((ep) => ep.toLowerCase() === e.exePath))
-              : undefined) ?? matchedEntries[0]
-          const screenPoint =
-            cachedGame && (cachedGame.cx !== 0 || cachedGame.cy !== 0)
-              ? { x: cachedGame.cx, y: cachedGame.cy }
-              : undefined
-          if (store.get('settings').autoSwitchProfile !== false) {
-            this.setActive(next.id)
-            for (const cb of this.autoDetectedListeners) cb(next, false, current.id, screenPoint)
+
+        // If the user manually changed away from the auto-detected game profile
+        // during the current session, respect their choice — don't force them back.
+        const userChangedDuringSession =
+          this.activeGameSessionId === next.id && current.id !== next.id
+
+        if (!userChangedDuringSession) {
+          // New game detected (or first detection this session) — re-enable auto-switching.
+          this.manualOverride = false
+          this.activeGameSessionId = next.id
+          if (next.id !== current.id) {
+            const matchedPn = next.processNames.find((pn) => names.has(normalizeProcessName(pn)))
+            const matchedEntries = matchedPn ? (this.visibleGamesCache.get(normalizeProcessName(matchedPn)) ?? []) : []
+            // Prefer the entry whose exePath matches this profile so the notification
+            // appears on the correct screen when two games share a process name.
+            const cachedGame =
+              (next.exePaths?.length
+                ? matchedEntries.find((e) => next.exePaths!.some((ep) => ep.toLowerCase() === e.exePath))
+                : undefined) ?? matchedEntries[0]
+            const screenPoint =
+              cachedGame && (cachedGame.cx !== 0 || cachedGame.cy !== 0)
+                ? { x: cachedGame.cx, y: cachedGame.cy }
+                : undefined
+            if (store.get('settings').autoSwitchProfile !== false) {
+              this.setActive(next.id)
+              for (const cb of this.autoDetectedListeners) cb(next, false, current.id, screenPoint)
+            }
           }
         }
+
         if (!next.iconUrl && next.processNames.length > 0) {
           const matchedName = next.processNames.find((pn) => names.has(normalizeProcessName(pn)))
           if (matchedName) {
@@ -401,14 +438,21 @@ export class ProfileManager {
               })
           }
         }
-      } else if (!this.manualOverride) {
-        const current = this.getActive()
-        if (current.id !== DEFAULT_PROFILE_ID && store.get('settings').autoSwitchProfile !== false) {
-          this.setActive(DEFAULT_PROFILE_ID)
-          for (const cb of this.autoReturnedListeners) cb(current.id)
-          // Reset the throttle so the next game that starts triggers an immediate
-          // autoDetectGames() scan rather than waiting up to 30 s.
-          this.lastAutoDetectAt = 0
+      } else {
+        // No game detected — clear the session so the next game starts fresh.
+        this.activeGameSessionId = null
+        if (!this.manualOverride) {
+          const current = this.getActive()
+          if (current.id !== DEFAULT_PROFILE_ID && store.get('settings').autoSwitchProfile !== false) {
+            // Stay on the game profile — don't auto-switch back to default.
+            // Set manualOverride so this branch doesn't re-fire every poll cycle
+            // while no game is running. It is cleared when a new game starts.
+            this.manualOverride = true
+            for (const cb of this.autoGameClosedListeners) cb(current.id)
+            // Reset the throttle so the next game that starts triggers an immediate
+            // autoDetectGames() scan rather than waiting up to 30 s.
+            this.lastAutoDetectAt = 0
+          }
         }
       }
       void this.autoDetectGames()

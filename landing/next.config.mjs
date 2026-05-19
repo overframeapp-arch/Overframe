@@ -2,14 +2,21 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// With node-linker=hoisted, pnpm places next in the workspace root node_modules,
+// so we point Turbopack's root there so it can resolve the next package.
+const workspaceRoot = path.resolve(__dirname, '..')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // Pin the workspace root to silence the multi-lockfile warning when this
-  // package is built in isolation from inside a monorepo.
-  outputFileTracingRoot: __dirname,
+  // Both outputFileTracingRoot and turbopack.root must be the same value.
+  // Point both at the workspace root so Turbopack can resolve the `next` package
+  // that pnpm (node-linker=hoisted) placed in the workspace root node_modules.
+  outputFileTracingRoot: workspaceRoot,
+  turbopack: {
+    root: workspaceRoot,
+  },
   // Set in deployment environment to point at the latest installer URL.
   env: {
     NEXT_PUBLIC_DOWNLOAD_URL:

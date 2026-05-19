@@ -19,7 +19,7 @@ import { cn } from '../lib/cn'
 // ── MemoryWidget ──────────────────────────────────────────────────────────────
 function formatMb(kb: number): string {
   const mb = kb / 1024
-  return mb >= 1000 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`
 }
 
 function MemoryWidget(): JSX.Element {
@@ -230,7 +230,7 @@ export function AddressBar(): JSX.Element {
       <button
         type="button"
         aria-label="Join the Discord community"
-        onClick={() => void window.aether.tabs.create('https://discord.gg')}
+        onClick={() => void window.aether.tabs.create('https://discord.com/channels/1501993110291349584/1501996196103979251')}
         className="flex items-center justify-center h-7 w-7 rounded text-muted-foreground/60 hover:text-indigo-400 hover:bg-background/70 transition-colors"
         title="Discord community"
       >

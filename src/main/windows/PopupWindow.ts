@@ -455,6 +455,7 @@ export class PopupWindow {
       maximizable: false,
       fullscreenable: false,
       skipTaskbar: true,
+      focusable: false,
       show: false,
       alwaysOnTop: true,
       webPreferences: {
@@ -483,7 +484,7 @@ export class PopupWindow {
 
     this.achievementWin.webContents.once('dom-ready', () => {
       if (!this.achievementWin || this.achievementWin.isDestroyed()) return
-      this.achievementWin.show()
+      this.achievementWin.showInactive()
       sendInit()
       setTimeout(() => {
         if (!this.achievementWin || this.achievementWin.isDestroyed()) return
@@ -512,5 +513,17 @@ export class PopupWindow {
     // Shift queue and show next
     this.achievementQueue.shift()
     if (this.achievementQueue.length > 0) setImmediate(() => this._showNextAchievement())
+  }
+
+  /**
+   * Immediately dismisses any active achievement notification and empties the
+   * queue. Called when the overlay becomes hidden (e.g. game detected) so
+   * notifications never float above the game.
+   */
+  dismissAchievements(): void {
+    if (this.achievementTimer) { clearTimeout(this.achievementTimer); this.achievementTimer = null }
+    if (this.achievementWin && !this.achievementWin.isDestroyed()) this.achievementWin.destroy()
+    this.achievementWin = null
+    this.achievementQueue = []
   }
 }

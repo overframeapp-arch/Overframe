@@ -144,7 +144,7 @@ export interface CollectionExport {
   name: string
   source: CollectionSource
   iconUrl?: string
-  links: Array<Pick<Link, 'title' | 'url' | 'note' | 'pinned'>>
+  links: Array<Pick<Link, 'title' | 'url' | 'note' | 'pinned' | 'favicon'>>
 }
 
 export interface TabState {

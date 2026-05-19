@@ -77,6 +77,10 @@ export const IPC = {
   /** Renderer → Main: show an achievement notification popup window. */
   AchievementNotify: 'achievement:notify',
   AppGetVersion: 'app:getVersion',
+  /** Renderer → Main: trigger an update check. */
+  AppCheckForUpdates: 'app:checkForUpdates',
+  /** Main → Renderer: live update-check status. */
+  EventUpdateStatus: 'event:update:status',
 
   // Popup windows
   PopupOpen: 'popup:open',

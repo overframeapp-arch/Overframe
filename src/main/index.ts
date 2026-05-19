@@ -150,24 +150,31 @@ app.whenReady().then(() => {
   // ── Profile events ─────────────────────────────────────────────────────────
 
   let pendingSessionRestore: { profileId: string; fallbackUrl: string } | null = null
+  /**
+   * True when the overlay was automatically hidden by game detection
+   * (i.e. the user did not explicitly hide it). Used to restore the overlay
+   * when the game closes, while respecting an intentional user-hide.
+   */
+  let wasAutoHiddenByGame = false
 
   profiles.onChange((profile) => {
     if (!overlay) return
     overlay.setOpacity(profile.opacity)
     /**
      * Restore window bounds one tick after the profile switch so any hide() that
-     * runs in onAutoDetected / onAutoReturnedToDefault fires first. The reposition
-     * then happens while the window is already invisible.
+     * runs in onAutoDetected fires first (overlay invisible before repositioning).
+     * When a game closes there is no profile switch, so this only applies on
+     * explicit profile changes (manual or game detection).
      */
     setTimeout(() => {
       if (!overlay || overlay.win.isDestroyed()) return
       overlay.win.setBounds(profile.windowBounds)
     }, 0)
     overlay.win.webContents.send(IPC.EventProfileChanged, profile)
-    // Only restore the tab session if the overlay is currently visible.
-    // If hidden (game just closed, returned to default), defer until the user
-    // explicitly opens the overlay — avoids background network activity the
-    // user never asked for (e.g. YouTube autoplay).
+    // Restore the tab session immediately when the overlay is visible.
+    // If hidden (user deliberately hid the overlay), defer until the overlay is
+    // opened — avoids background network activity the user never requested
+    // (e.g. YouTube autoplay while working without the overlay).
     if (overlay.getState() !== 'HIDDEN') {
       sessionManager?.restore(profile.id, profile.homepageUrl)
     } else {
@@ -187,14 +194,27 @@ app.whenReady().then(() => {
     overlay.win.webContents.send(IPC.EventProfileAutoDetected, { profile, isNew })
     // Auto-hide when transitioning from idle (default) to a game session.
     // If the user was already in a game profile, do not disturb them.
+    // If the overlay was already hidden (user chose to hide it), respect that.
     if (fromProfileId === DEFAULT_PROFILE_ID && overlay.getState() !== 'HIDDEN') {
+      wasAutoHiddenByGame = true
       overlay.hide()
     }
     popup?.openGameNotification(profile, isNew, screenPoint)
   })
 
-  profiles.onAutoReturnedToDefault(() => {
-    if (overlay && overlay.getState() !== 'HIDDEN') overlay.hide()
+  profiles.onAutoGameClosed(() => {
+    if (!overlay) return
+    if (wasAutoHiddenByGame) {
+      wasAutoHiddenByGame = false
+      // Only reveal the overlay if it is still hidden — if the user opened it
+      // manually mid-game, leave it as-is to avoid stealing focus unexpectedly.
+      if (overlay.getState() === 'HIDDEN') {
+        overlay.show()
+      }
+    }
+    // Profile has NOT changed — the user stays on the game profile.
+    // If the overlay was already hidden before the game started, leave it hidden.
+    // If it was visible during the game (user opened it mid-session), keep it visible.
   })
 
   profiles.onGameUndetected((candidates) => {
@@ -211,6 +231,8 @@ app.whenReady().then(() => {
     if (!overlay) return
     overlay.win.webContents.send(IPC.EventOverlayStateChanged, state)
     if (state === 'HIDDEN') {
+      // Dismiss any floating achievement notification so it never appears above the game.
+      popup?.dismissAchievements()
       const perfMode = store.get('settings').performanceMode ?? false
       if (perfMode) tabs?.unloadAll()
       else tabs?.suspendAll()

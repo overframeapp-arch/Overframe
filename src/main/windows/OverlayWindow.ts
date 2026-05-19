@@ -32,6 +32,8 @@ export class OverlayWindow {
   private everShown = false
   /** True while visually hidden via opacity=0. */
   private visuallyHidden = false
+  /** State saved before hiding, so CT mode survives a hide/show cycle. */
+  private stateBeforeHide: OverlayState | null = null
 
   constructor(initialBounds: WindowBounds) {
     const safeBounds = this.clampToDisplay(initialBounds)
@@ -88,6 +90,9 @@ export class OverlayWindow {
   }
 
   show(): void {
+    const restoreClickThrough = this.state === 'HIDDEN' && this.stateBeforeHide === 'CLICK_THROUGH'
+    this.stateBeforeHide = null
+
     if (this.state === 'HIDDEN') {
       this.visuallyHidden = false
       this.win.setOpacity(this.currentOpacity)
@@ -104,23 +109,37 @@ export class OverlayWindow {
     this.win.setAlwaysOnTop(true, 'screen-saver')
     this.win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
     this.win.show()
-    app.focus({ steal: true })
     this.win.moveTop()
-    if (this.state !== 'FOCUSED') {
-      this.setState('FOCUSED')
+    if (restoreClickThrough) {
+      // Restore click-through without stealing keyboard focus from the game.
+      this.applyClickThrough(true)
+      this.setState('CLICK_THROUGH')
+    } else {
+      app.focus({ steal: true })
+      if (this.state !== 'FOCUSED') {
+        this.setState('FOCUSED')
+      }
     }
   }
 
   hide(): void {
     if (this.state === 'HIDDEN') return
+    // Save current state so show() can restore it (e.g. CT mode survives a hide/show).
+    this.stateBeforeHide = this.state
     // Drop alwaysOnTop while invisible — this removes the window from the DWM
     // "screen-saver" layer so game windows can't interact with a transparent ghost.
     // show() will re-assert screen-saver level before the window becomes opaque.
     this.win.setAlwaysOnTop(false)
     this.visuallyHidden = true
     this.win.setOpacity(0)
-    this.win.setIgnoreMouseEvents(true, { forward: true })
+    // No { forward: true } here — when fully hidden the renderer must NOT receive
+    // WM_MOUSEMOVE events, which would trigger :hover states and tooltip artefacts
+    // while the user is playing. Mouse input reaches the game naturally because
+    // the OS skips windows that ignore mouse events.
+    this.win.setIgnoreMouseEvents(true)
     this.win.blur()
+    // Undo any CT ignoring so the hidden window is fully non-interactive.
+    if (this.state === 'CLICK_THROUGH') this.applyClickThrough(false)
     this.setState('HIDDEN')
   }
 

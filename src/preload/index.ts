@@ -116,6 +116,7 @@ const api = {
     uninstall: (): Promise<void> => ipcRenderer.invoke(IPC.SystemUninstall),
     openFolder: (target: 'userData' | 'app'): Promise<void> => ipcRenderer.invoke(IPC.SystemOpenFolder, target),
     resetData: (): Promise<void> => ipcRenderer.invoke(IPC.SystemResetData),
+    checkForUpdates: (): Promise<void> => ipcRenderer.invoke(IPC.AppCheckForUpdates),
   },
   achievement: {
     notify: (title: string): Promise<void> => ipcRenderer.invoke(IPC.AchievementNotify, { title }),
@@ -229,6 +230,11 @@ const api = {
       const listener = (_e: unknown, event: DownloadEvent): void => cb(event)
       ipcRenderer.on(IPC.EventDownload, listener)
       return (): void => { ipcRenderer.removeListener(IPC.EventDownload, listener) }
+    },
+    updateStatus: (cb: (payload: { status: string; version?: string; message?: string }) => void): (() => void) => {
+      const listener = (_e: unknown, p: { status: string; version?: string; message?: string }): void => cb(p)
+      ipcRenderer.on(IPC.EventUpdateStatus, listener)
+      return (): void => { ipcRenderer.removeListener(IPC.EventUpdateStatus, listener) }
     },
   }
 }

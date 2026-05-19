@@ -53,7 +53,9 @@ export function buildShortcutActions({
 
     toggleFocusMode: () => {
       if (overlay.win.isDestroyed()) return
-      overlay.show()
+      // Only show() if the overlay is hidden — show() forces FOCUSED state, which
+      // would clobber CLICK_THROUGH if the overlay is already visible.
+      if (overlay.getState() === 'HIDDEN') overlay.show()
       overlay.win.webContents.send(IPC.EventToggleFocusMode)
     },
 

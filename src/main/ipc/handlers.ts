@@ -1,4 +1,4 @@
-import { ipcMain, shell, app, dialog } from 'electron'
+import { ipcMain, shell, app, dialog, autoUpdater, webContents } from 'electron'
 import { spawn } from 'child_process'
 import path from 'path'
 import { IPC } from '@shared/ipc'
@@ -12,6 +12,41 @@ import type { OverlayWindow } from '../windows/OverlayWindow'
 import { DEFAULT_HOMEPAGE, DEFAULT_SHORTCUTS } from '@shared/types'
 import type { BookmarkPopupPayload, AchievementPayload, CollectionsPopupPayload, LinkOverflowPayload, MemoryPopupPayload, Settings, Shortcuts } from '@shared/types'
 import { getVisibleGames } from '../utils/getVisibleGames'
+
+// ── Auto-updater ───────────────────────────────────────────────────────────
+// Only functional in packaged builds. In dev mode we immediately reply with
+// a 'dev' status so the UI can show a friendly message instead of an error.
+
+type UpdateStatus =
+  | { status: 'checking' }
+  | { status: 'up-to-date' }
+  | { status: 'available'; version: string }
+  | { status: 'downloaded'; version: string }
+  | { status: 'error'; message: string }
+  | { status: 'dev' }
+
+function broadcastUpdateStatus(payload: UpdateStatus): void {
+  for (const wc of webContents.getAllWebContents()) {
+    if (!wc.isDestroyed()) wc.send(IPC.EventUpdateStatus, payload)
+  }
+}
+
+let updaterReady = false
+function ensureUpdater(): void {
+  if (updaterReady || !app.isPackaged) return
+  updaterReady = true
+  const feedUrl = `https://update.electronjs.org/overframeApp-arch/Overframe/win32/${app.getVersion()}`
+  autoUpdater.setFeedURL({ url: feedUrl })
+  autoUpdater.on('checking-for-update', () => broadcastUpdateStatus({ status: 'checking' }))
+  autoUpdater.on('update-not-available', () => broadcastUpdateStatus({ status: 'up-to-date' }))
+  autoUpdater.on('update-available', () => broadcastUpdateStatus({ status: 'available', version: '' }))
+  autoUpdater.on('update-downloaded', (_e, _notes, releaseName) =>
+    broadcastUpdateStatus({ status: 'downloaded', version: releaseName ?? '' })
+  )
+  autoUpdater.on('error', (err: Error) =>
+    broadcastUpdateStatus({ status: 'error', message: err.message })
+  )
+}
 
 // Only these protocols are safe to load in a WebContentsView
 function isSafeUrl(url: string): boolean {
@@ -369,6 +404,14 @@ export function registerIpcHandlers(deps: Deps): void {
     return null
   })
   ipcMain.handle(IPC.AppGetVersion, () => app.getVersion())
+  ipcMain.handle(IPC.AppCheckForUpdates, () => {
+    if (!app.isPackaged) {
+      broadcastUpdateStatus({ status: 'dev' })
+      return
+    }
+    ensureUpdater()
+    autoUpdater.checkForUpdates()
+  })
   ipcMain.handle(IPC.SystemPickFolder, async (_e) => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]

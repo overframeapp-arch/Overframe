@@ -4,7 +4,7 @@ import type { MemorySnapshot, TabState } from '@shared/types'
 
 function formatMb(kb: number): string {
   const mb = kb / 1024
-  return mb >= 1000 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`
 }
 
 function MemBar({ kb, maxKb }: { kb: number; maxKb: number }): JSX.Element {

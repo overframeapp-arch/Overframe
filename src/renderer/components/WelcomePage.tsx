@@ -1,5 +1,5 @@
-﻿import { useState } from 'react'
-import { Home, Newspaper, Trophy, Heart } from 'lucide-react'
+﻿import { useState, useEffect } from 'react'
+import { Home, Newspaper, Trophy, Heart, Globe, RefreshCw, Loader2, CheckCircle2, AlertCircle, Mail } from 'lucide-react'
 import { DiscordIcon } from './icons/DiscordIcon'
 import { useAppStore } from '../store/appStore'
 import { cn } from '../lib/cn'
@@ -43,7 +43,7 @@ const ANNOUNCEMENTS: Announcement[] = [
     id: 'v0.1-launch',
     date: 'May 15, 2026',
     title: 'Overframe v0.1',
-    body: 'First public build. Everything you need to browse without leaving your game is here â€” tabs, profiles, collections, shortcuts, game detection. Rough edges exist; drop them on Discord and they\'ll get fixed. Thanks for being first.',
+    body: 'First public build. Everything you need to browse without leaving your game is here — tabs, profiles, collections, shortcuts, game detection. Rough edges exist; drop them on Discord and I\'ll get them fixed. Thanks for being first.',
     tag: 'Early Access',
     isNew: true,
   },
@@ -51,10 +51,28 @@ const ANNOUNCEMENTS: Announcement[] = [
 
 type HomeTab = 'home' | 'missions' | 'news'
 
+type UpdateStatus =
+  | null
+  | { status: 'checking' }
+  | { status: 'up-to-date' }
+  | { status: 'available'; version: string }
+  | { status: 'downloaded'; version: string }
+  | { status: 'error'; message: string }
+  | { status: 'dev' }
+
 export function WelcomePage(): JSX.Element | null {
   const { activeTabId, settings } = useAppStore()
   const [tab, setTab] = useState<HomeTab>('home')
   const [seenIds, setSeenIds] = useState<Set<string>>(loadSeenIds)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(null)
+  const [version, setVersion] = useState('')
+
+  useEffect(() => {
+    void window.aether.system.getVersion().then(setVersion).catch(() => { /* non-critical */ })
+  }, [])
+  useEffect(() =>
+    window.aether.on.updateStatus(setUpdateStatus as (p: { status: string; version?: string; message?: string }) => void)
+  , [])
 
   if (activeTabId !== null) return null
   if (!settings) return null
@@ -205,28 +223,67 @@ export function WelcomePage(): JSX.Element | null {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center gap-4 px-5 py-2.5 border-t border-border shrink-0">
+      <div className="flex items-center gap-3 px-5 py-2.5 border-t border-border shrink-0">
         <button
           type="button"
           className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-indigo-400 transition-colors"
           onClick={() => void window.aether.tabs.create('https://discord.gg/A2KPZn8WNd')}
         >
-          <DiscordIcon size={11} /> Discord community
+          <DiscordIcon size={11} /> Community
         </button>
         <button
           type="button"
           className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-pink-400 transition-colors"
           onClick={() => void window.aether.tabs.create('https://ko-fi.com/overframe')}
         >
-          <Heart size={11} /> Support development
+          <Heart size={11} /> Donate
         </button>
-        <span className="flex-1" />
         <button
           type="button"
-          className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+          className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground/80 transition-colors"
           onClick={() => void window.aether.tabs.create('https://overframe.app')}
         >
-          overframe.app
+          <Globe size={11} /> Website
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground/80 transition-colors"
+          onClick={() => void window.aether.system.openExternal('mailto:contact@overframe.app')}
+        >
+          <Mail size={11} /> Contact
+        </button>
+
+        <span className="flex-1" />
+
+        {/* Update status feedback */}
+        {updateStatus && updateStatus.status !== 'checking' && updateStatus.status !== 'dev' && (
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50">
+            {updateStatus.status === 'up-to-date' && <><CheckCircle2 size={10} className="text-green-500" aria-hidden="true" />Up to date</>}
+            {updateStatus.status === 'available' && <><Loader2 size={10} className="animate-spin text-blue-400" aria-hidden="true" />Downloading…</>}
+            {updateStatus.status === 'downloaded' && <><CheckCircle2 size={10} className="text-green-500" aria-hidden="true" />Restart to update</>}
+            {updateStatus.status === 'error' && <><AlertCircle size={10} className="text-destructive" aria-hidden="true" />Update failed</>}
+          </span>
+        )}
+
+        {version && (
+          <span className="text-[10px] text-muted-foreground/30" aria-label={`Version ${version}`}>
+            {version}
+          </span>
+        )}
+
+        <button
+          type="button"
+          disabled={updateStatus?.status === 'checking'}
+          onClick={() => {
+            setUpdateStatus({ status: 'checking' })
+            void window.aether.system.checkForUpdates()
+          }}
+          className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {updateStatus?.status === 'checking'
+            ? <Loader2 size={11} className="animate-spin" aria-hidden="true" />
+            : <RefreshCw size={11} aria-hidden="true" />}
+          {updateStatus?.status === 'checking' ? 'Checking…' : 'Check for updates'}
         </button>
       </div>
     </div>

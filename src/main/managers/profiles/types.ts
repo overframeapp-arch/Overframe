@@ -9,7 +9,12 @@ export type ProfileAutoDetectedListener = (
   fromProfileId: string,
   screenPoint?: { x: number; y: number },
 ) => void
-export type ProfileAutoReturnedToDefaultListener = (fromProfileId: string) => void
+/**
+ * Fires when the active game profile's process is no longer detected.
+ * The profile is NOT automatically switched — the user stays on the game profile.
+ * `fromProfileId` is the game profile that was active when the game closed.
+ */
+export type ProfileAutoGameClosedListener = (fromProfileId: string) => void
 export type GameUndetectedListener = (
   candidates: Array<{ processName: string; displayName: string; exePath: string }>,
 ) => void

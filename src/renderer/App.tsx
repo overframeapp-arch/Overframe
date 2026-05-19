@@ -1,16 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAppStore } from './store/appStore'
 import { TabBar } from './components/TabBar'
 import { AddressBar } from './components/AddressBar'
 import { CollectionBar } from './components/CollectionBar'
 import { PinnedBar } from './components/PinnedBar'
-import { Toast } from './components/Toast'
 import { OnboardingOverlay } from './components/OnboardingOverlay'
 import { WelcomePage } from './components/WelcomePage'
 import { MissionsTracker } from './components/MissionsTracker'
 import { MissionsPanel } from './components/MissionsPanel'
 import { notify } from './lib/notify'
-import type { ToastPayload } from './components/Toast'
 
 export function App(): JSX.Element {
   const {
@@ -22,6 +20,7 @@ export function App(): JSX.Element {
     upsertTab,
     removeTab,
     setActiveTab,
+    overlayState,
     setOverlayState,
     isFocusMode,
     setFocusMode,
@@ -66,10 +65,6 @@ export function App(): JSX.Element {
       void window.aether.profiles.getAll().then(setProfiles).catch(console.error)
       void window.aether.collections.getAll().then(setCollections).catch(console.error)
     })
-    const offAutoDetect = window.aether.on.profileAutoDetected(({ profile, isNew }) => {
-      toastKeyRef.current += 1
-      setToastPayload({ profile, isNew, key: toastKeyRef.current })
-    })
     const offState = window.aether.on.overlayStateChanged(setOverlayState)
     // Refresh collections after bookmark popup closes (save/remove/blur)
     const offPopup = window.aether.on.popupDone(() => {
@@ -86,7 +81,6 @@ export function App(): JSX.Element {
       offRemove()
       offActive()
       offProfile()
-      offAutoDetect()
       offState()
       offPopup()
       offDownload()
@@ -165,7 +159,7 @@ export function App(): JSX.Element {
   }, [])
 
   // ResizeObserver: auto-sync chrome height whenever the chrome DOM changes.
-  // Skipped when focus mode is active (main process already received 0).
+  // Skipped when focus mode is active (main process height is controlled by the effect above).
   const chromeRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = chromeRef.current
@@ -189,21 +183,17 @@ export function App(): JSX.Element {
     }
   }, [isFocusMode])
 
-  // Toast for auto-detected profile switches
-  const [toastPayload, setToastPayload] = useState<ToastPayload | null>(null)
-  const toastKeyRef = useRef(0)
-
   return (
     <div className="flex flex-col h-screen w-screen bg-background/90 backdrop-blur-md rounded-md overflow-hidden border border-border">
-      <div ref={chromeRef}>
+      {/* pointer-events-none in click-through: suppresses all hover/tooltip artefacts.
+           Interactive elements (exit badge, hide button) override with pointer-events-auto
+           and call setMouseInteractive so OS-level clicks reach them too. */}
+      <div ref={chromeRef} className={overlayState === 'CLICK_THROUGH' ? 'pointer-events-none' : undefined}>
         <TabBar />
         <AddressBar />
         <CollectionBar />
         <PinnedBar />
       </div>
-
-      {/* Auto-detection toast */}
-      <Toast payload={toastPayload} />
 
       {/* Achievement notifications — rendered here so they appear above the WebContentsView */}
       <MissionsTracker />

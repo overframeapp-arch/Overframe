@@ -281,6 +281,7 @@ export function TabBar(): JSX.Element {
   const windowDragging = useRef(false)
   const unmaximizing = useRef(false)
   const windowDragAborted = useRef(false)
+  const fillerPointerCaptured = useRef(false)
   const captureX = useRef(0)
   const captureY = useRef(0)
   const pointerDownScreenX = useRef(0)
@@ -288,6 +289,7 @@ export function TabBar(): JSX.Element {
   const onFillerPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
     e.currentTarget.setPointerCapture(e.pointerId)
+    fillerPointerCaptured.current = true
     windowDragging.current = false
     unmaximizing.current = false
     windowDragAborted.current = false
@@ -297,6 +299,7 @@ export function TabBar(): JSX.Element {
   }
 
   const onFillerPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (!fillerPointerCaptured.current) return
     if (!e.buttons) return
     if (unmaximizing.current) return
 
@@ -337,9 +340,15 @@ export function TabBar(): JSX.Element {
 
   const onFillerPointerUp = (e: React.PointerEvent<HTMLDivElement>): void => {
     e.currentTarget.releasePointerCapture(e.pointerId)
+    fillerPointerCaptured.current = false
     windowDragging.current = false
     unmaximizing.current = false
     windowDragAborted.current = true
+    // If pointer left the drag zone during the drag, release mouse interactive (no-op outside click-through)
+    const r = e.currentTarget.getBoundingClientRect()
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+      window.aether.overlay.setMouseInteractive(false)
+    }
   }
 
   const canCreate = n < MAX_TABS
@@ -598,18 +607,21 @@ export function TabBar(): JSX.Element {
 
         {/* Drag filler — remaining space used as window drag target */}
         <div
-          className="no-drag flex-1 h-full flex items-center justify-end pr-1"
+          className="no-drag pointer-events-auto flex-1 h-full flex items-center justify-end pr-1"
           onPointerDown={onFillerPointerDown}
           onPointerMove={onFillerPointerMove}
           onPointerUp={onFillerPointerUp}
+          onMouseEnter={() => window.aether.overlay.setMouseInteractive(true)}
+          onMouseLeave={() => { if (!windowDragging.current) window.aether.overlay.setMouseInteractive(false) }}
         >
           {overlayState === 'CLICK_THROUGH' && (
             <button
               type="button"
               aria-label="Click-through mode is active. Click to exit."
-              title="Overlay is transparent to clicks. Press to exit click-through mode."
+              title="Overlay is transparent to clicks. Click to exit click-through mode."
               onClick={() => window.aether.overlay.leaveClickThrough()}
-              className="flex items-center gap-1 shrink-0 h-5 px-2 rounded text-[10px] font-medium bg-amber-500/15 text-amber-400/90 hover:bg-amber-500/25 border border-amber-500/25 transition-colors cursor-default"
+              onPointerDown={(e) => e.stopPropagation()}
+              className="pointer-events-auto flex items-center gap-1 shrink-0 h-5 px-2 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/35 hover:text-amber-300 border border-amber-500/35 transition-colors cursor-default"
             >
               <MousePointer2 size={10} />
               pass-through
@@ -622,11 +634,13 @@ export function TabBar(): JSX.Element {
       <div className="no-drag flex items-center gap-0.5 shrink-0">
 
         <div
-          className="no-drag flex items-center justify-center h-7 w-[41.09px] text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+          className="no-drag pointer-events-auto flex items-center justify-center h-7 w-[41.09px] text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
           title="Drag to move"
           onPointerDown={onFillerPointerDown}
           onPointerMove={onFillerPointerMove}
           onPointerUp={onFillerPointerUp}
+          onMouseEnter={() => window.aether.overlay.setMouseInteractive(true)}
+          onMouseLeave={() => { if (!windowDragging.current) window.aether.overlay.setMouseInteractive(false) }}
         />
 
         <button
@@ -642,7 +656,9 @@ export function TabBar(): JSX.Element {
           type="button"
           aria-label="Hide overlay"
           onClick={() => void window.aether.overlay.hide()}
-          className="flex items-center justify-center h-8 w-8 rounded text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors cursor-default"
+          onMouseEnter={() => window.aether.overlay.setMouseInteractive(true)}
+          onMouseLeave={() => window.aether.overlay.setMouseInteractive(false)}
+          className="pointer-events-auto flex items-center justify-center h-8 w-8 rounded text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors cursor-default"
         >
           <X size={20} strokeWidth={1} />
         </button>

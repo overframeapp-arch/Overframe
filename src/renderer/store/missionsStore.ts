@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-const STORAGE_KEY = 'overframe:completedMissions'
+export const STORAGE_KEY = 'overframe:completedMissions'
 
 function loadCompleted(): string[] {
   try {

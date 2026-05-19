@@ -17,11 +17,9 @@ interface ProfileEditFormProps {
 export function ProfileEditForm({ profile, isDefault, onSave, onCancel }: ProfileEditFormProps): JSX.Element {
   const [name, setName] = useState(profile.name)
   const [iconUrl, setIconUrl] = useState(profile.iconUrl ?? '')
-  const [homepageUrl, setHomepageUrl] = useState(profile.homepageUrl ?? '')
   const [processNames, setProcessNames] = useState(profile.processNames.join(', '))
   const nameId = useId()
   const iconId = useId()
-  const homepageId = useId()
   const processId = useId()
 
   const handleSave = (): void => {
@@ -30,7 +28,6 @@ export function ProfileEditForm({ profile, isDefault, onSave, onCancel }: Profil
     onSave({
       name: trimmed,
       iconUrl: iconUrl.trim() || undefined,
-      homepageUrl: homepageUrl.trim() || undefined,
       processNames: processNames.split(',').map((s) => s.trim()).filter(Boolean),
     })
   }
@@ -54,16 +51,6 @@ export function ProfileEditForm({ profile, isDefault, onSave, onCancel }: Profil
         <input id={nameId} autoFocus value={name} onChange={(e) => setName(e.target.value)} disabled={isDefault}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel() }}
           className={cn('h-7 px-2.5 rounded text-[12px] bg-input border border-border focus:outline-none focus:border-primary/60', isDefault && 'opacity-50 cursor-not-allowed')} />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={homepageId} className="text-[11px] text-muted-foreground flex items-center">
-          Homepage URL
-          <InfoTip text="The page opened when you click the home button in the address bar." />
-        </label>
-        <input id={homepageId} value={homepageUrl} onChange={(e) => setHomepageUrl(e.target.value)}
-          type="url"
-          placeholder="https://www.google.com"
-          className="h-7 px-2.5 rounded text-[12px] bg-input border border-border focus:outline-none focus:border-primary/60" />
       </div>
       <ProcessNamesField
         id={processId}

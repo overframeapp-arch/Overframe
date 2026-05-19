@@ -125,7 +125,9 @@ export class CollectionsManager {
         title: l.title,
         url: l.url,
         note: l.note,
-        pinned: l.pinned
+        pinned: l.pinned,
+        // Only export http/https favicons — data: URLs are non-portable and large
+        ...(l.favicon && /^https?:\/\//.test(l.favicon) ? { favicon: l.favicon } : {})
       }))
     }
     return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64')
@@ -160,7 +162,9 @@ export class CollectionsManager {
       profileId,
       source,
       ...(() => {
-        if (typeof parsed.iconUrl === 'string' && parsed.iconUrl.length > 0 && parsed.iconUrl.length <= 4096) {
+        if (typeof parsed.iconUrl === 'string' && parsed.iconUrl.length > 0 && parsed.iconUrl.length <= 65536) {
+          const isDataImage = /^data:image\/[a-z+.-]+;base64,/.test(parsed.iconUrl)
+          if (isDataImage) return { iconUrl: parsed.iconUrl }
           try {
             const proto = new URL(parsed.iconUrl).protocol
             if (proto === 'http:' || proto === 'https:') return { iconUrl: parsed.iconUrl }
@@ -183,7 +187,13 @@ export class CollectionsManager {
             title: String(l.title ?? '').slice(0, 500),
             url,
             note: l.note,
-            favicon: undefined,
+            favicon: (() => {
+              if (typeof l.favicon !== 'string') return undefined
+              try {
+                const proto = new URL(l.favicon).protocol
+                return (proto === 'http:' || proto === 'https:') ? l.favicon : undefined
+              } catch { return undefined }
+            })(),
             pinned: Boolean(l.pinned),
             order: i
           }

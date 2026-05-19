@@ -24,6 +24,8 @@ export class TabManager {
   private stoppedDuringHide = new Set<string>()
   private unloadedUrls = new Map<string, string>()
   private tabSession: Electron.Session
+  /** True while in CLICK_THROUGH state — used to suppress hover in tab webpages. */
+  private isClickThrough = false
 
   constructor(private overlay: OverlayWindow) {
     // Dedicated persistent session for browser tabs.
@@ -53,6 +55,17 @@ export class TabManager {
     })
     this.tabSession.setPermissionCheckHandler((_wc, permission) => {
       return GRANTED_PERMISSIONS.has(permission)
+    })
+
+    // Suppress :hover / pointer effects in tab pages while in CT mode so
+    // the user doesn't see hover UI (YouTube controls, etc.) bleed through.
+    this.overlay.onStateChange((state) => {
+      const entering = state === 'CLICK_THROUGH'
+      if (entering === this.isClickThrough) return
+      this.isClickThrough = entering
+      for (const tab of this.tabs.values()) {
+        this.applyClickThroughCSS(tab.view.webContents, entering)
+      }
     })
 
     // Wire download tracking at session level (covers all tabs)
@@ -98,6 +111,15 @@ export class TabManager {
 
   private emit(e: TabEvent): void {
     for (const cb of this.listeners) cb(e)
+  }
+
+  /** Inject or remove a <style> that blocks pointer events in a tab page during CT mode. */
+  private applyClickThroughCSS(wc: Electron.WebContents, enable: boolean): void {
+    if (wc.isDestroyed()) return
+    const js = enable
+      ? `if(!document.getElementById('__of_ct')){const s=document.createElement('style');s.id='__of_ct';s.textContent='html,html *{pointer-events:none!important}';(document.head??document.documentElement).appendChild(s)}`
+      : `document.getElementById('__of_ct')?.remove()`
+    void wc.executeJavaScript(js).catch(() => {})
   }
 
   getAll(): TabState[] {
@@ -428,6 +450,8 @@ export class TabManager {
       void wc.executeJavaScript(SCROLLBAR_JS).catch(() => {
         /* page may be navigating away */
       })
+      // Re-apply CT suppression after navigation (the injected <style> is lost on nav).
+      if (this.isClickThrough) this.applyClickThroughCSS(wc, true)
     })
     wc.on('did-stop-loading', () =>
       update({

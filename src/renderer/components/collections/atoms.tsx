@@ -1,15 +1,16 @@
 import { useState } from 'react'
+import { cn } from '../../lib/cn'
 import { Info } from 'lucide-react'
 
-export function Favicon({ url, favicon }: { url: string; favicon?: string }): JSX.Element {
+export function Favicon({ url, favicon, className }: { url: string; favicon?: string | null; className?: string }): JSX.Element {
   const [failed, setFailed] = useState(false)
-  let src = favicon
+  let src: string | undefined = favicon ?? undefined
   if (!src || failed) {
     try { src = `${new URL(url).origin}/favicon.ico` } catch { src = '' }
   }
-  if (!src) return <span className="inline-block w-3 h-3 shrink-0 opacity-20 rounded-sm bg-current" />
+  if (!src) return <span className={cn('inline-block w-3 h-3 shrink-0 opacity-20 rounded-sm bg-current', className)} />
   return (
-    <img src={src} alt="" width={12} height={12} className="shrink-0 rounded-sm" onError={() => setFailed(true)} />
+    <img src={src} alt="" width={12} height={12} className={cn('shrink-0 rounded-sm', className)} onError={() => setFailed(true)} />
   )
 }
 

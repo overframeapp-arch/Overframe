@@ -6,6 +6,7 @@ import {
   Download,
   Image as ImageIcon,
   Link as LinkIcon,
+  MoreHorizontal,
   Pencil,
   Pin,
   Plus,
@@ -30,7 +31,7 @@ export function CollectionActionsMenu({ collection, onRename, onSetIcon, onExpor
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <Button size="icon" variant="ghost" aria-label={`Actions for ${collection.name}`} className="h-6 w-6 shrink-0">
-          <Pencil size={11} aria-hidden="true" />
+          <MoreHorizontal size={11} aria-hidden="true" />
         </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
