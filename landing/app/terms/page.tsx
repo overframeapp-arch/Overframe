@@ -19,6 +19,16 @@ export default function TermsPage() {
       </header>
 
       <div className="mt-10 space-y-8 text-[15px] leading-relaxed text-muted-foreground">
+
+        <section>
+          <p>
+            These Terms of Use govern your use of the Overframe desktop application
+            and the overframe.app website. They are published by the independent
+            developer operating this project (“the developer”, “we”). By installing
+            or using the software, you agree to these Terms.
+          </p>
+        </section>
+
         <section>
           <h2 className="text-xl font-semibold text-foreground">1. Licence</h2>
           <p className="mt-2">
@@ -73,9 +83,10 @@ export default function TermsPage() {
         <section>
           <h2 className="text-xl font-semibold text-foreground">6. Changes</h2>
           <p className="mt-2">
-            We may update these terms from time to time. Continued use of the
-            application or the website after a change constitutes acceptance of the
-            updated terms.
+            We may update these terms from time to time. If changes are material,
+            a notice will be posted on this page and announced via the Discord server
+            at least 30 days before the change takes effect. You may reject the new
+            terms by uninstalling the application and ceasing to use the website.
           </p>
         </section>
 
@@ -84,7 +95,18 @@ export default function TermsPage() {
           <p className="mt-2">
             These terms are governed by the laws of the user&rsquo;s country of
             residence to the extent required by applicable consumer protection law,
-            and otherwise by French law.
+            and otherwise by French law. Any dispute that cannot be resolved amicably
+            shall be submitted to the competent courts of France.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-semibold text-foreground">8. Severability</h2>
+          <p className="mt-2">
+            If any provision of these Terms is found to be invalid or unenforceable
+            under applicable law, that provision will be modified to the minimum
+            extent necessary to make it enforceable, or severed if modification is
+            not possible. The remaining provisions continue in full force and effect.
           </p>
         </section>
       </div>

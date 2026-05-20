@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { MessageCircle, Heart, Mail } from 'lucide-react'
+import { Heart, Mail } from 'lucide-react'
 import { GithubIcon } from '@/components/GithubIcon'
+import { DiscordIcon } from '@/components/DiscordIcon'
 import { SITE_CONFIG } from '@/lib/config'
 import { Logo } from './Logo'
 
@@ -8,10 +9,9 @@ const COLS = [
   {
     title: 'Product',
     links: [
-      { href: '/#features', label: 'Features' },
+      { href: '/download', label: 'Download' },
       { href: '/#how', label: 'How it works' },
-      { href: '/#safety', label: 'Anti-cheat safety' },
-      { href: '/#shortcuts', label: 'Shortcuts' },
+      { href: '/#security', label: 'Security' },
       { href: '/#faq', label: 'FAQ' },
       { href: '/changelog', label: 'Changelog' },
     ],
@@ -29,6 +29,7 @@ const COLS = [
     links: [
       { href: '/privacy', label: 'Privacy' },
       { href: '/terms', label: 'Terms' },
+      { href: '/legal', label: 'Legal Notice' },
       { href: '/contact', label: 'Contact' },
     ],
   },
@@ -37,7 +38,7 @@ const COLS = [
 export function Footer() {
   const year = new Date().getFullYear()
   return (
-    <footer className="mt-24 border-t border-border/60 bg-background">
+    <footer className="border-t border-border/60 bg-background">
       <div className="mx-auto max-w-container px-6 py-12">
         <div className="grid gap-10 md:grid-cols-4">
           <div>
@@ -46,8 +47,7 @@ export function Footer() {
               <span>Overframe</span>
             </Link>
             <p className="mt-3 text-sm text-muted-foreground">
-              A real browser floating on top of your game.
-              Free, open source, no fuss.
+              Browser overlay for PC gamers. Free &amp; open source.
             </p>
             <div className="mt-4 flex items-center gap-2">
               <a
@@ -66,7 +66,7 @@ export function Footer() {
                 aria-label="Discord"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
               >
-                <MessageCircle size={16} />
+                <DiscordIcon size={16} />
               </a>
               <a
                 href={SITE_CONFIG.links.kofi}

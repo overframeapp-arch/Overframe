@@ -1,47 +1,55 @@
 # Overframe Landing
 
-Public marketing site for the Overframe overlay browser. Built with **Next.js
-15** (app router) and **Tailwind CSS**.
+Public marketing site for [Overframe](https://overframe.app). Built with **Next.js 15** (App Router), **Tailwind CSS**, and TypeScript.
 
-## Local development
+## Dev
 
 ```bash
-# from the repo root
+# from the monorepo root
 pnpm install
 pnpm --filter overframe-landing dev
 ```
 
-Then open <http://localhost:3001>.
+Opens at <http://localhost:3001>.
 
-## Production build
+## Build
 
 ```bash
 pnpm --filter overframe-landing build
-pnpm --filter overframe-landing start
 ```
 
 ## Structure
 
 ```
 landing/
-├── app/                ← Next.js app router pages
-│   ├── layout.tsx      ← Root layout (fonts, theme, metadata)
-│   ├── page.tsx        ← Home (hero, features, download CTA)
-│   ├── download/       ← Direct-download page (per-OS installer links)
-│   ├── changelog/      ← Release notes
-│   └── docs/           ← Product documentation
-├── components/         ← Reusable UI primitives (Button, Section…)
-├── content/            ← MDX/JSON copy: features, FAQs, changelog data
-├── public/             ← Static assets (logo, screenshots, OG image)
-├── styles/             ← Tailwind entrypoint
+├── app/
+│   ├── layout.tsx          ← Root layout: metadata, JSON-LD, fonts
+│   ├── page.tsx            ← Home page
+│   ├── download/           ← Windows download page
+│   ├── changelog/          ← Auto-fetched from GitHub Releases API
+│   ├── contact/            ← Contact channels
+│   ├── privacy/            ← Privacy policy
+│   ├── terms/              ← Terms of service
+│   ├── legal/              ← Legal notice (noindex)
+│   ├── opengraph-image.tsx ← OG image (Edge, auto-generated)
+│   ├── apple-icon.tsx      ← Apple touch icon (Edge, auto-generated)
+│   ├── sitemap.ts
+│   └── robots.ts
+├── components/             ← Page sections and UI
+├── lib/
+│   ├── config.ts           ← Central site config (URLs, links, metadata)
+│   └── ...
+├── public/
+│   ├── favicon.svg
+│   └── demo.mp4
+├── styles/
 ├── next.config.mjs
 ├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
+└── tsconfig.json
 ```
 
 ## Deployment
 
-Designed to deploy as a static / SSR site on Vercel, Netlify or any Node host.
-Set the env var `NEXT_PUBLIC_DOWNLOAD_URL` to the latest installer URL (the
-download CTA reads from it).
+Deployed on **Cloudflare Pages**.
+
+Set `NEXT_PUBLIC_DOWNLOAD_URL` to override the installer download URL at build time. Defaults to the latest `Overframe-Setup.exe` from GitHub Releases.

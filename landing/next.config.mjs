@@ -8,6 +8,7 @@ const workspaceRoot = path.resolve(__dirname, '..')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
   reactStrictMode: true,
   poweredByHeader: false,
   // Both outputFileTracingRoot and turbopack.root must be the same value.
@@ -18,9 +19,11 @@ const nextConfig = {
     root: workspaceRoot,
   },
   // Set in deployment environment to point at the latest installer URL.
+  // GitHub /releases/latest/download/{asset} always redirects to the newest release asset.
   env: {
     NEXT_PUBLIC_DOWNLOAD_URL:
-      process.env.NEXT_PUBLIC_DOWNLOAD_URL ?? 'https://github.com/overframe/overframe/releases/latest',
+      process.env.NEXT_PUBLIC_DOWNLOAD_URL ??
+      'https://github.com/overframeApp-arch/Overframe/releases/latest/download/Overframe-Setup.exe',
   },
 }
 

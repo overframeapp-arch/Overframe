@@ -3,8 +3,8 @@
  *
  * Two layered rounded squares: a darker back "frame" (the game canvas) and a
  * brighter front "frame" (the floating overlay) sliding in from the bottom-
- * right. Amber gradient = primary brand colour, identical to the SVGs in
- * /public/icons/ used by the desktop app — keep them in sync.
+ * right. Violet gradient = landing page colour — keeps in sync with the
+ * violet design system tokens used across the landing.
  *
  * Each instance gets a unique gradient id (random suffix) so multiple
  * `<Logo />`s on the same page don't collide.
@@ -39,13 +39,13 @@ export function Logo({
       >
         <defs>
           <linearGradient id={gFill} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#FCD34D" />
-            <stop offset="50%" stopColor="#F59E0B" />
-            <stop offset="100%" stopColor="#B45309" />
+            <stop offset="0%" stopColor="#C4B5FD" />
+            <stop offset="50%" stopColor="#7C3AED" />
+            <stop offset="100%" stopColor="#5B21B6" />
           </linearGradient>
           <linearGradient id={gDeep} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#7C2D12" />
-            <stop offset="100%" stopColor="#1F0A02" />
+            <stop offset="0%" stopColor="#2E1065" />
+            <stop offset="100%" stopColor="#0D0D15" />
           </linearGradient>
         </defs>
         <rect

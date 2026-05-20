@@ -1,6 +1,7 @@
 'use client'
 
 import { Download, Play, Share2, type LucideIcon } from 'lucide-react'
+import Link from 'next/link'
 import { useInView } from '@/lib/useInView'
 import { cn } from '@/lib/cn'
 
@@ -17,22 +18,20 @@ const STEPS: Step[] = [
     n: '1',
     icon: Download,
     title: 'Install in 30 seconds',
-    description: 'Run the installer. No admin rights, no driver, no hidden background service.',
+    description: 'Run the installer. No admin required, no background services.',
   },
   {
     n: '2',
     icon: Play,
-    title: 'Press Alt+B in any game',
-    description:
-      'Overframe pops on top, auto-detects your game and loads its profile — your tabs, your opacity, your links.',
+    title: 'Remembers each game',
+    description: 'Reopen the overlay and your tabs are right where you left them.',
     kbd: ['Alt', 'B'],
   },
   {
     n: '3',
     icon: Share2,
     title: 'Save it. Share it.',
-    description:
-      'Pin your sources. Export the collection as a short string. Your team imports the whole pack in one click.',
+    description: 'Export your setup as a short code. One paste and anyone gets your exact layout.',
   },
 ]
 
@@ -51,16 +50,14 @@ export function HowItWorks() {
         <h2
           id="how-heading"
           className={cn(
-            'reveal max-w-xl text-4xl font-bold tracking-tight md:text-5xl',
+            'reveal max-w-xl text-balance text-3xl font-bold tracking-tight md:text-4xl',
             inView && 'in-view',
           )}
         >
-          From install to first share
-          <br />
-          <span className="text-muted-foreground">in under a minute.</span>
+          Up and running in 30 seconds.
         </h2>
 
-        <div className="mt-16 grid gap-px overflow-hidden rounded-2xl bg-border/30 lg:grid-cols-3">
+        <div className="mt-12 grid gap-px overflow-hidden rounded-2xl bg-border/30 lg:grid-cols-3">
           {STEPS.map((s, i) => (
             <div
               key={s.title}
@@ -102,8 +99,16 @@ export function HowItWorks() {
                   ))}
                 </div>
               )}
+
             </div>
           ))}
+        </div>
+
+        <div className={cn('mt-10 text-center reveal reveal-delay-4', inView && 'in-view')}>
+          <Link href="/download" className="btn-primary">
+            <Download size={16} aria-hidden />
+            Download free for Windows
+          </Link>
         </div>
       </div>
     </section>

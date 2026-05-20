@@ -219,6 +219,14 @@ export function SettingsPanel(): JSX.Element {
                   >
                     <FolderOpen size={11} /> Installation folder
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void window.aether.system.openFolder('logs')}
+                    className="justify-start gap-2"
+                  >
+                    <FolderOpen size={11} /> Crash logs
+                  </Button>
                 </div>
               </Section>
 
@@ -339,6 +347,20 @@ export function SettingsPanel(): JSX.Element {
                     onClick={() => void window.aether.system.devStoreReset()}
                   >
                     Reset store &amp; relaunch
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void window.aether.settings.set('hasCompletedOnboarding', false).then((s) => { if (s) useAppStore.getState().setSettings(s) })}
+                  >
+                    Show onboarding
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void window.aether.system.simulateCrash()}
+                  >
+                    Write test crash
                   </Button>
                 </Section>
               )}

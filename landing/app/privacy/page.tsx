@@ -44,17 +44,23 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold text-foreground">2. Network requests we make</h2>
           <p className="mt-2">
-            The application itself does not contact any Overframe-controlled server.
-            The only outbound traffic originates from:
+            Overframe makes the following outbound connections:
           </p>
           <ul className="mt-3 list-disc space-y-1.5 pl-6">
             <li>The websites you choose to visit through the overlay browser.</li>
-            <li>The favicon service used to fetch site icons (<code>www.google.com/s2/favicons</code>).</li>
-            <li>An optional update check against GitHub Releases.</li>
+            <li>A favicon service to fetch site icons (<code>www.google.com/s2/favicons</code>).</li>
+            <li>An update check via <code>update.electronjs.org</code> (proxies the GitHub repository releases). Only triggered manually or on launch.</li>
+            <li>
+              <strong className="text-foreground">Share feature only:</strong> when you export a collection as a short code,
+              the collection data is sent to <code>share.overframe.app</code> and stored there until deleted.
+              This is entirely user-initiated. To request deletion of shared data, email{' '}
+              <a href="mailto:contact@overframe.app" className="text-foreground underline hover:text-primary">contact@overframe.app</a>{' '}
+              with the share code.
+            </li>
           </ul>
           <p className="mt-3">
-            Network requests sent to known advertising and tracking domains are
-            blocked at the request level by the built-in ad blocker.
+            No other connection is made to Overframe-controlled infrastructure.
+            There is no telemetry, no analytics, and no background reporting.
           </p>
         </section>
 
@@ -62,26 +68,37 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold text-foreground">3. This website (overframe.app)</h2>
           <p className="mt-2">
             The marketing website does not use cookies, tracking pixels, fingerprinting
-            scripts or third-party analytics. Standard server access logs may be
-            retained by our hosting provider for security and abuse prevention.
+            scripts or third-party analytics. Standard server access logs are retained
+            by Cloudflare (our hosting provider) for security and abuse prevention;
+            see{' '}
+            <a
+              href="https://www.cloudflare.com/privacypolicy/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground underline hover:text-primary"
+            >
+              Cloudflare&apos;s privacy policy
+            </a>.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-semibold text-foreground">4. Children</h2>
           <p className="mt-2">
-            Overframe is not directed at children under 13. We do not knowingly
-            collect data from any user.
+            Overframe is not directed at children under 15. We do not knowingly
+            collect data from any user, regardless of age.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-semibold text-foreground">5. Your rights (GDPR / CCPA)</h2>
           <p className="mt-2">
-            Because we do not store personal data on any server, requests for access,
-            correction or deletion are satisfied automatically — uninstalling the app
-            removes all data we ever held about you. For questions, contact us at the
-            address listed below.
+            Overframe stores no personal data on its servers.
+            Uninstalling the application removes all locally-held data.
+            If you have used the Share feature, collection data may remain on <code>share.overframe.app</code>;
+            to request deletion, email{' '}
+            <a href="mailto:contact@overframe.app" className="text-foreground underline hover:text-primary">contact@overframe.app</a>{' '}
+            with the share code. We will process your request within 30 days.
           </p>
         </section>
 
@@ -97,10 +114,13 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold text-foreground">7. Contact</h2>
           <p className="mt-2">
             Questions about this policy can be sent to{' '}
-            <a href="/contact" className="text-foreground underline hover:text-primary">
-              the contact page
+            <a href="mailto:contact@overframe.app" className="text-foreground underline hover:text-primary">
+              contact@overframe.app
             </a>
-            .
+            {' '}or via the{' '}
+            <a href="/contact" className="text-foreground underline hover:text-primary">
+              contact page
+            </a>.
           </p>
         </section>
       </div>

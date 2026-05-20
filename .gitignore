@@ -7,6 +7,7 @@ coverage/
 # Logs
 *.log
 make-log.txt
+pnpm-debug.log*
 
 # OS
 .DS_Store

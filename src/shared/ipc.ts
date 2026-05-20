@@ -40,6 +40,7 @@ export const IPC = {
   CollectionsUpdateLink: 'collections:updateLink',
   CollectionsTogglePin: 'collections:togglePin',
   CollectionsExport: 'collections:export',
+  CollectionsShare: 'collections:share',
   CollectionsImport: 'collections:import',
   CollectionsSetIconUrl: 'collections:setIconUrl',
   CollectionsReorderLinks: 'collections:reorderLinks',
@@ -126,6 +127,8 @@ export const IPC = {
   // Dev-only
   /** Clears the entire electron-store and relaunches. No-op in production builds. */
   DevStoreReset: 'dev:storeReset',
+  /** Writes a synthetic crash entry to crash.log — dev only. */
+  DevSimulateCrash: 'dev:simulateCrash',
   /** Opens a system folder in Windows Explorer. */
   SystemOpenFolder: 'system:openFolder',
   /** Wipes all user data (store + localStorage) and relaunches. */

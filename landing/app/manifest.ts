@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next'
 
+export const dynamic = 'force-static'
+
 /** PWA-ish manifest — also serves as the source of truth for icons. */
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -12,6 +12,7 @@ import type { OverlayWindow } from '../windows/OverlayWindow'
 import { DEFAULT_HOMEPAGE, DEFAULT_SHORTCUTS } from '@shared/types'
 import type { BookmarkPopupPayload, AchievementPayload, CollectionsPopupPayload, LinkOverflowPayload, MemoryPopupPayload, Settings, Shortcuts } from '@shared/types'
 import { getVisibleGames } from '../utils/getVisibleGames'
+import { crashLogPath, ensureLogsDir, logCrash } from '../utils/crashLogger'
 
 // ── Auto-updater ───────────────────────────────────────────────────────────
 // Only functional in packaged builds. In dev mode we immediately reply with
@@ -67,6 +68,9 @@ const MAX_NAME_LENGTH = 200
 const MAX_NOTE_LENGTH = 2000
 /** Base64 export blob: a single collection with hundreds of links is ~50–100 KB. */
 const MAX_IMPORT_BASE64_LENGTH = 1_000_000 // ~750 KB decoded
+
+/** Share API — Cloudflare Worker. Override with OVERFRAME_SHARE_URL env var for self-hosting. */
+const SHARE_API_URL = process.env.OVERFRAME_SHARE_URL ?? 'https://share.overframe.app'
 
 /** Returns true if the input is a non-empty string under the given length. */
 function isBoundedString(input: unknown, maxLength: number): input is string {
@@ -285,8 +289,42 @@ export function registerIpcHandlers(deps: Deps): void {
     collections.togglePin(collectionId, linkId)
   )
   ipcMain.handle(IPC.CollectionsExport, (_e, id: string) => collections.export(id))
-  ipcMain.handle(IPC.CollectionsImport, (_e, base64: string, profileId: string) => {
-    if (typeof base64 !== 'string' || base64.length === 0 || base64.length > MAX_IMPORT_BASE64_LENGTH) return null
+
+  // Upload the full collection JSON (including embedded images) to the share worker
+  // and return the 8-char short code. Falls back to null on network error.
+  ipcMain.handle(IPC.CollectionsShare, async (_e, id: string) => {
+    const b64 = collections.export(id)
+    if (!b64) return null
+    const json = Buffer.from(b64, 'base64').toString('utf8')
+    try {
+      const res = await fetch(SHARE_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: json,
+      })
+      if (!res.ok) return null
+      const data = await res.json() as { code?: string }
+      return typeof data.code === 'string' ? data.code : null
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle(IPC.CollectionsImport, async (_e, input: string, profileId: string) => {
+    if (typeof input !== 'string' || input.length === 0) return null
+    let base64 = input
+    // Short code (8 lowercase alphanumeric chars) — resolve via share worker
+    if (/^[a-z0-9]{8}$/.test(input)) {
+      try {
+        const res = await fetch(`${SHARE_API_URL}/${input}`)
+        if (!res.ok) return null
+        const json = await res.text()
+        base64 = Buffer.from(json, 'utf8').toString('base64')
+      } catch {
+        return null
+      }
+    }
+    if (base64.length > MAX_IMPORT_BASE64_LENGTH) return null
     return collections.import(base64, profileId)
   })
   ipcMain.handle(IPC.CollectionsSetIconUrl, (_e, id: string, iconUrl: string | null) => {
@@ -417,12 +455,22 @@ export function registerIpcHandlers(deps: Deps): void {
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
   })
 
-  ipcMain.handle(IPC.SystemOpenFolder, (_e, target: 'userData' | 'app') => {
-    const folderPath =
-      target === 'userData'
-        ? app.getPath('userData')
-        : path.dirname(app.getPath('exe'))
+  ipcMain.handle(IPC.SystemOpenFolder, (_e, target: 'userData' | 'app' | 'logs') => {
+    let folderPath: string
+    if (target === 'userData') {
+      folderPath = app.getPath('userData')
+    } else if (target === 'logs') {
+      ensureLogsDir()
+      folderPath = path.dirname(crashLogPath())
+    } else {
+      folderPath = path.dirname(app.getPath('exe'))
+    }
     return shell.openPath(folderPath)
+  })
+
+  ipcMain.handle(IPC.DevSimulateCrash, () => {
+    if (app.isPackaged) return
+    logCrash('simulated', new Error('Test crash written from developer tools'))
   })
 
   ipcMain.handle(IPC.SystemResetData, async (_e) => {

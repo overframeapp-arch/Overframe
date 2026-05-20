@@ -1,16 +1,22 @@
 import { HeroSection } from '@/components/HeroSection'
-import { ProblemSection } from '@/components/ProblemSection'
-import { FeaturesGrid } from '@/components/FeaturesGrid'
-import { ShortcutsShowcase } from '@/components/ShortcutsShowcase'
+import { DemoVideo } from '@/components/DemoVideo'
+import { HowItWorks } from '@/components/HowItWorks'
+import { CommunitySection } from '@/components/CommunitySection'
+import { TrustSecurity } from '@/components/TrustSecurity'
+import { CreatorNote } from '@/components/CreatorNote'
+import { FAQSection } from '@/components/FAQSection'
 import { CTABanner } from '@/components/CTABanner'
 
 export default function HomePage() {
   return (
     <>
       <HeroSection />
-      <ProblemSection />
-      <FeaturesGrid />
-      <ShortcutsShowcase />
+      <DemoVideo src="/demo.mp4" />
+      <HowItWorks />
+      <CreatorNote />
+      <CommunitySection />
+      <FAQSection />
+      <TrustSecurity />
       <CTABanner />
     </>
   )

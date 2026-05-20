@@ -28,26 +28,46 @@ const QUICK_LINKS: QuickLink[] = [
 ]
 
 // â”€â”€ News / patch-notes feed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface Announcement {
-  id: string
-  date: string
-  title: string
+interface GHRelease {
+  tag_name: string
+  name: string
+  published_at: string
   body: string
-  tag?: string
-  url?: string
-  isNew?: boolean
+  html_url: string
+  prerelease: boolean
 }
 
-const ANNOUNCEMENTS: Announcement[] = [
-  {
-    id: 'v0.1-launch',
-    date: 'May 15, 2026',
-    title: 'Overframe v0.1',
-    body: 'First public build. Everything you need to browse without leaving your game is here — tabs, profiles, collections, shortcuts, game detection. Rough edges exist; drop them on Discord and I\'ll get them fixed. Thanks for being first.',
-    tag: 'Early Access',
-    isNew: true,
-  },
-]
+const GH_RELEASES_URL = 'https://api.github.com/repos/overframeApp-arch/Overframe/releases'
+
+function stripMd(md: string): string {
+  return md
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/\r?\n+/g, ' ')
+    .trim()
+}
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function useGitHubReleases(): { releases: GHRelease[] | null; error: boolean } {
+  const [releases, setReleases] = useState<GHRelease[] | null>(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    fetch(GH_RELEASES_URL, { headers: { Accept: 'application/vnd.github+json' } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
+      .then((data: GHRelease[]) => { if (!cancelled) setReleases(data) })
+      .catch(() => { if (!cancelled) setError(true) })
+    return () => { cancelled = true }
+  }, [])
+  return { releases, error }
+}
 
 type HomeTab = 'home' | 'missions' | 'news'
 
@@ -66,6 +86,7 @@ export function WelcomePage(): JSX.Element | null {
   const [seenIds, setSeenIds] = useState<Set<string>>(loadSeenIds)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(null)
   const [version, setVersion] = useState('')
+  const { releases, error: releasesError } = useGitHubReleases()
 
   useEffect(() => {
     void window.aether.system.getVersion().then(setVersion).catch(() => { /* non-critical */ })
@@ -77,13 +98,12 @@ export function WelcomePage(): JSX.Element | null {
   if (activeTabId !== null) return null
   if (!settings) return null
 
-  const hasAnnouncements = ANNOUNCEMENTS.length > 0
-  const hasNew = ANNOUNCEMENTS.some((a) => a.isNew && !seenIds.has(a.id))
+  const hasNew = releases?.some((r) => !seenIds.has(r.tag_name)) ?? false
 
   function switchTab(next: HomeTab): void {
     setTab(next)
-    if (next === 'news') {
-      const freshIds = ANNOUNCEMENTS.filter((a) => a.isNew && !seenIds.has(a.id)).map((a) => a.id)
+    if (next === 'news' && releases) {
+      const freshIds = releases.filter((r) => !seenIds.has(r.tag_name)).map((r) => r.tag_name)
       if (freshIds.length > 0) {
         const updated = new Set([...seenIds, ...freshIds])
         localStorage.setItem(SEEN_KEY, JSON.stringify([...updated]))
@@ -169,7 +189,7 @@ export function WelcomePage(): JSX.Element | null {
                   </button>
                 )
               })}
-              </div>
+          </div>
             </div>
           </div>
         )}
@@ -178,46 +198,59 @@ export function WelcomePage(): JSX.Element | null {
 
         {tab === 'news' && (
           <div className="flex flex-col gap-3 px-5 py-4">
-            {hasAnnouncements ? (
-              ANNOUNCEMENTS.map(({ id, date, title, body, tag, url, isNew }) => (
+            {releases === null && !releasesError && (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={18} className="animate-spin text-muted-foreground/40" />
+              </div>
+            )}
+            {releasesError && (
+              <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
+                <AlertCircle size={28} className="text-muted-foreground/30" />
+                <p className="text-[11px] text-muted-foreground/50">Could not load releases — check your connection.</p>
+              </div>
+            )}
+            {releases?.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
+                <Newspaper size={28} className="text-muted-foreground/30" />
+                <p className="text-[11px] text-muted-foreground/50">No releases yet — check back soon.</p>
+              </div>
+            )}
+            {releases?.map(({ tag_name, name, published_at, body, html_url, prerelease }) => {
+              const isNew = !seenIds.has(tag_name)
+              const trimmed = stripMd(body)
+              const excerpt = trimmed.length > 220 ? trimmed.slice(0, 220).trimEnd() + '…' : trimmed
+              return (
                 <div
-                  key={id}
+                  key={tag_name}
                   className="flex flex-col gap-2 p-3 rounded-md border bg-muted border-border"
                 >
                   <div className="flex items-center gap-2">
-                    {tag && (
+                    {prerelease && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide bg-amber-500/15 text-amber-400 border border-amber-500/20 leading-none">
-                        {tag}
+                        Early Access
                       </span>
                     )}
-                    {isNew && !seenIds.has(id) && (
+                    {isNew && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide bg-primary/10 text-primary border border-primary/20 leading-none">
                         new
                       </span>
                     )}
                   </div>
-                  <span className="text-[11px] font-semibold text-foreground">{title}</span>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">{body}</p>
+                  <span className="text-[11px] font-semibold text-foreground">{name || tag_name}</span>
+                  {excerpt && <p className="text-[11px] text-muted-foreground leading-relaxed">{excerpt}</p>}
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-muted-foreground/40">{date}</span>
-                    {url && (
-                      <button
-                        type="button"
-                        onClick={() => void window.aether.tabs.create(url)}
-                        className="text-[10px] text-primary hover:underline"
-                      >
-                        Read more â†’
-                      </button>
-                    )}
+                    <span className="text-[10px] text-muted-foreground/40">{fmtDate(published_at)}</span>
+                    <button
+                      type="button"
+                      onClick={() => void window.aether.tabs.create(html_url)}
+                      className="text-[10px] text-primary hover:underline"
+                    >
+                      Read more →
+                    </button>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
-                <Newspaper size={28} className="text-muted-foreground/30" />
-                <p className="text-[11px] text-muted-foreground/50">No news yet â€” check back soon.</p>
-              </div>
-            )}
+              )
+            })}
           </div>
         )}
       </div>

@@ -1,75 +1,14 @@
-import { Download, MessageCircle } from 'lucide-react'
+import { Suspense } from 'react'
+import { Download, ShieldCheck, ChevronDown } from 'lucide-react'
+import Link from 'next/link'
 import { SITE_CONFIG } from '@/lib/config'
+import { DiscordIcon } from './DiscordIcon'
 
-function OverframeCube() {
-  return (
-    <svg
-      viewBox="0 0 120 120"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="w-full h-full"
-      aria-hidden="true"
-    >
-      <defs>
-        <radialGradient id="ovtg" cx="38%" cy="28%" r="72%">
-          <stop offset="0%"   stopColor="#ddd6fe" />
-          <stop offset="40%"  stopColor="#7c3aed" />
-          <stop offset="85%"  stopColor="#4c1d95" />
-          <stop offset="100%" stopColor="#2e1065" />
-        </radialGradient>
-        <radialGradient id="ovhi" cx="45%" cy="32%" r="58%">
-          <stop offset="0%"   stopColor="#fff" stopOpacity=".45" />
-          <stop offset="100%" stopColor="#fff" stopOpacity="0"   />
-        </radialGradient>
-        <filter id="ovglow">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
-      {/* Top face */}
-      <polygon
-        points="60,10 106,34 60,58 14,34"
-        fill="url(#ovtg)"
-        filter="url(#ovglow)"
-      />
-      {/* Right face */}
-      <polygon points="106,34 106,82 60,106 60,58" fill="#4c1d95" />
-      {/* Left face */}
-      <polygon points="14,34 60,58 60,106 14,82" fill="#3b0764" />
-      {/* Highlight */}
-      <polygon points="60,10 106,34 60,58 14,34" fill="url(#ovhi)" />
-
-      {/* Edges */}
-      <polyline
-        points="60,10 106,34 60,58 14,34 60,10"
-        fill="none"
-        stroke="rgba(196,181,253,0.55)"
-        strokeWidth="0.8"
-      />
-      <line x1="60"  y1="58"  x2="60"  y2="106" stroke="rgba(196,181,253,0.32)" strokeWidth="0.8" />
-      <line x1="14"  y1="34"  x2="14"  y2="82"  stroke="rgba(196,181,253,0.22)" strokeWidth="0.8" />
-      <line x1="106" y1="34"  x2="106" y2="82"  stroke="rgba(196,181,253,0.32)" strokeWidth="0.8" />
-      <line x1="14"  y1="82"  x2="60"  y2="106" stroke="rgba(196,181,253,0.22)" strokeWidth="0.8" />
-      <line x1="106" y1="82"  x2="60"  y2="106" stroke="rgba(196,181,253,0.32)" strokeWidth="0.8" />
-    </svg>
-  )
-}
-
-export function HeroSection() {
-  return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pb-24 pt-28 text-center">
+export function HeroSection() {  return (
+    <section className="relative flex flex-col items-center justify-start overflow-hidden px-6 pb-28 pt-[clamp(5.5rem,11vh,7.5rem)] text-center">
       {/* Atmospheric rings */}
       <div className="ov-ring-outer" aria-hidden />
       <div className="ov-ring-inner" aria-hidden />
-
-      {/* Cube */}
-      <div className="ov-cube relative z-10 mb-8 h-[108px] w-[108px] max-sm:h-[82px] max-sm:w-[82px]">
-        <OverframeCube />
-      </div>
 
       {/* Content */}
       <div
@@ -78,28 +17,21 @@ export function HeroSection() {
       >
         {/* Eyebrow */}
         <span className="mb-5 block font-sans text-[0.78rem] font-semibold uppercase tracking-[0.22em] text-primary/70">
-          In-game browser overlay
+          For PC gamers
         </span>
 
         {/* Product name */}
-        <h1 className="text-[clamp(3rem,8vw,5.5rem)] font-bold leading-[1.06] tracking-[0.02em] text-gradient-animated">
+        <h1 className="text-[clamp(3rem,8vw,5.5rem)] font-bold leading-[1.06] tracking-tight text-white">
           Overframe
         </h1>
 
         {/* Tagline */}
-        <p className="mt-4 text-[clamp(1.1rem,2.5vw,1.45rem)] font-medium tracking-wide text-[var(--text-head)]">
-          Browse the web. Stay in the game.
+        <p className="mt-5 text-[clamp(1.1rem,2.5vw,1.45rem)] font-medium tracking-wide text-[var(--text-head)]">
+          Never alt-tab again.
         </p>
 
-        {/* Divider */}
-        <div className="ov-divider my-8">
-          <span className="ov-divider-line" />
-          <span className="ov-divider-icon" aria-hidden>&#x25C6;</span>
-          <span className="ov-divider-line" />
-        </div>
-
         {/* Description */}
-        <p className="mx-auto max-w-[520px] text-[clamp(0.98rem,2.2vw,1.13rem)] leading-[1.82] text-[var(--text)]">
+        <p className="mt-6 mx-auto max-w-[480px] text-[clamp(0.95rem,2vw,1.08rem)] leading-[1.75] text-[var(--text)]">
           Press{' '}
           <kbd className="rounded border border-border/80 bg-muted/60 px-1.5 py-0.5 font-mono text-[0.8em] text-foreground/80">
             Alt
@@ -108,37 +40,59 @@ export function HeroSection() {
           <kbd className="rounded border border-border/80 bg-muted/60 px-1.5 py-0.5 font-mono text-[0.8em] text-foreground/80">
             B
           </kbd>
-          {' '}in any game and your browser appears on top —
-          no alt-tab, no lost focus. Safe with all anti-cheat systems.
+          {' '}and a browser opens over your game — builds, wikis, guides.
+          Each game keeps its own.
         </p>
 
         {/* CTAs */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <a
-            href={SITE_CONFIG.downloadUrl}
-            target="_blank"
-            rel="noreferrer noopener"
+          <Link
+            href="/download"
             className="btn-primary"
           >
             <Download size={16} aria-hidden />
             Download free for Windows
-          </a>
+          </Link>
           <a
             href={SITE_CONFIG.links.discord}
             target="_blank"
             rel="noreferrer noopener"
             className="btn-ghost"
           >
-            <MessageCircle size={16} aria-hidden />
+            <DiscordIcon size={16} />
             Join Discord
           </a>
         </div>
 
-        {/* Hint */}
-        <p className="mt-5 font-sans text-[0.75rem] uppercase tracking-[0.08em] text-[var(--text-dim)]">
-          Windows 10 &amp; 11 · Free &amp; open source · No account needed
-        </p>
+        {/* Trust badges */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-[0.72rem] text-muted-foreground">
+            Windows 10 &amp; 11
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-[0.72rem] text-muted-foreground">
+            Free forever · No account
+          </span>
+          <a
+            href="https://www.virustotal.com/gui/file/fb5e1ad4fed0f002553b92c2bac201c4d3f100c44fe8371bdd75ff9a5c5c7165/detection"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-[0.72rem] text-muted-foreground transition hover:border-emerald-500/30 hover:text-foreground"
+          >
+            <ShieldCheck size={10} className="text-emerald-400/80" aria-hidden />
+            Scanned clean · VirusTotal ↗
+          </a>
+        </div>
+
       </div>
+
+      {/* Scroll indicator */}
+      <div
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce text-muted-foreground/30"
+        aria-hidden
+      >
+        <ChevronDown size={22} />
+      </div>
+
     </section>
   )
 }

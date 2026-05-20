@@ -4,7 +4,6 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import { Particles } from '@/components/Particles'
-import { LiveOverlay } from '@/components/LiveOverlay'
 import { SITE_CONFIG } from '@/lib/config'
 import '../styles/globals.css'
 
@@ -59,24 +58,14 @@ export const metadata: Metadata = {
     siteName: SITE_CONFIG.name,
     title: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
     description: SITE_CONFIG.description,
-    images: [
-      {
-        url: '/og.png',
-        width: 1200,
-        height: 630,
-        alt: `${SITE_CONFIG.name} overlay screenshot`,
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: `${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`,
     description: SITE_CONFIG.description,
-    images: ['/og.png'],
   },
   icons: {
     icon: '/favicon.svg',
-    apple: '/apple-touch-icon.png',
   },
   robots: {
     index: true,
@@ -107,8 +96,8 @@ const JSON_LD_APP = {
   applicationSubCategory: 'Browser',
   operatingSystem: SITE_CONFIG.supportedOS,
   downloadUrl: SITE_CONFIG.downloadUrl,
-  softwareVersion: '1.0',
-  fileSize: '~120MB',
+  softwareVersion: '0.1.1',
+  fileSize: '~130MB (installer)',
   releaseNotes: `${SITE_CONFIG.url}/changelog`,
   license: 'https://opensource.org/licenses/MIT',
   isAccessibleForFree: true,
@@ -122,7 +111,6 @@ const JSON_LD_APP = {
     'Always-on-top browser overlay',
     'Per-game profiles with auto-detection',
     'Click-through mode',
-    'Built-in network-level ad blocker',
     'Per-game collections with one-click sharing',
     'Customisable global hotkeys (AZERTY/QWERTY/DVORAK)',
     'Performance Mode (frees GPU and RAM when hidden)',
@@ -159,7 +147,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <body className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased">
         <Particles />
-        <LiveOverlay />
         <Navbar />
         <main className="flex-1 relative z-10">{children}</main>
         <Footer />

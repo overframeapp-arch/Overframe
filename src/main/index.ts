@@ -24,6 +24,7 @@ import { installChromeCsp } from './lifecycle/csp'
 import { buildShortcutActions } from './lifecycle/shortcutActions'
 import { IPC } from '@shared/ipc'
 import { DEFAULT_SHORTCUTS, DEFAULT_PROFILE_ID, type Shortcuts } from '@shared/types'
+import { logCrash } from './utils/crashLogger'
 
 /** Single-instance lock — a second launch focuses the existing instance. */
 const gotLock = isSquirrelEvent ? true : app.requestSingleInstanceLock()
@@ -32,9 +33,11 @@ if (!gotLock) app.quit()
 /** Last-resort safety net so an unhandled rejection doesn't silently kill the main process. */
 process.on('unhandledRejection', (reason) => {
   console.error('[overframe] unhandledRejection:', reason)
+  logCrash('unhandledRejection', reason)
 })
 process.on('uncaughtException', (err) => {
   console.error('[overframe] uncaughtException:', err)
+  logCrash('uncaughtException', err)
 })
 
 let overlay: OverlayWindow | null = null

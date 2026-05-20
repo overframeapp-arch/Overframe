@@ -9,10 +9,12 @@ export const SITE_CONFIG = {
     'Overframe is a free, open-source overlay browser for Windows. Press Alt+B to open wikis, build guides and tools on top of any borderless game — no alt-tab, no injection, no risk to your anti-cheat.',
   url: 'https://overframe.app',
 
-  /** Latest installer URL — overridable via env at build time. */
+  /** Latest installer URL — overridable via env at build time.
+   *  GitHub redirects /releases/latest/download/{asset} to the newest release
+   *  automatically, so this URL never needs updating between releases. */
   downloadUrl:
     process.env.NEXT_PUBLIC_DOWNLOAD_URL ??
-    'https://github.com/overframeApp-arch/Overframe/releases/latest',
+    'https://github.com/overframeApp-arch/Overframe/releases/latest/download/Overframe-Setup.exe',
 
   links: {
     github: 'https://github.com/overframeApp-arch/Overframe',
@@ -29,22 +31,6 @@ export const SITE_CONFIG = {
 
   /** Operating systems the desktop app supports (used in JSON-LD). */
   supportedOS: 'Windows 10, Windows 11',
-
-  /** Platforms / launchers we auto-detect — used by GameList component. */
-  supportedPlatforms: [
-    'Steam',
-    'Epic Games',
-    'Riot Games',
-    'EA App',
-    'Battle.net',
-    'Ubisoft Connect',
-    'Xbox / Game Pass',
-    'GOG Galaxy',
-    'Rockstar Games',
-    'Amazon Games',
-    'itch.io',
-    'Microsoft Store',
-  ],
 } as const
 
 export type SiteConfig = typeof SITE_CONFIG

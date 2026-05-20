@@ -2,18 +2,19 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X, Download, MessageCircle } from 'lucide-react'
+import { Menu, X, Download } from 'lucide-react'
 import { SITE_CONFIG } from '@/lib/config'
 import { Logo } from './Logo'
+import { DiscordIcon } from './DiscordIcon'
 import { cn } from '@/lib/cn'
 
 const NAV = [
-  { href: '/#features', label: 'Features' },
   { href: '/#how', label: 'How it works' },
-  { href: '/#safety', label: 'Safety' },
+  { href: '/#security', label: 'Security' },
   { href: '/#community', label: 'Community' },
   { href: '/#faq', label: 'FAQ' },
   { href: '/changelog', label: 'Changelog' },
+  { href: '/contact', label: 'Contact' },
 ]
 
 export function Navbar() {
@@ -61,18 +62,16 @@ export function Navbar() {
             rel="noreferrer noopener"
             className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
-            <MessageCircle size={14} />
+            <DiscordIcon size={14} />
             Discord
           </a>
-          <a
-            href={SITE_CONFIG.downloadUrl}
-            target="_blank"
-            rel="noreferrer noopener"
+          <Link
+            href="/download"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_-5px_theme(colors.primary.DEFAULT)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <Download size={15} />
             Download
-          </a>
+          </Link>
         </div>
 
         {/* Mobile toggle */}
@@ -109,15 +108,14 @@ export function Navbar() {
             >
               Discord
             </a>
-            <a
-              href={SITE_CONFIG.downloadUrl}
-              target="_blank"
-              rel="noreferrer noopener"
+            <Link
+              href="/download"
+              onClick={() => setOpen(false)}
               className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
             >
               <Download size={15} />
               Download for Windows
-            </a>
+            </Link>
           </nav>
         </div>
       )}

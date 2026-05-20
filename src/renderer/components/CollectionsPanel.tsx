@@ -212,13 +212,15 @@ export function CollectionsPanel({
   }
 
   const handleExport = async (id: string): Promise<void> => {
-    const b64 = await window.aether.collections.export(id)
-    if (!b64) return
+    // Try short code first (requires network + deployed share worker)
+    const code = await window.aether.collections.share(id)
+    const textToCopy = code ?? (await window.aether.collections.export(id))
+    if (!textToCopy) return
     complete('export-collection')
     const { x, y } = mousePos.current
     setExportCopiedPos({ id, x, y })
     setTimeout(() => setExportCopiedPos(null), 2000)
-    try { await navigator.clipboard.writeText(b64) } catch { /* clipboard may fail if window loses focus */ }
+    try { await navigator.clipboard.writeText(textToCopy) } catch { /* clipboard may fail if window loses focus */ }
   }
 
   const handleImport = async (): Promise<void> => {
@@ -619,7 +621,7 @@ export function CollectionsPanel({
           {showImport && !showNewColl && (
             <div className="flex items-center gap-1.5 px-3 py-2 border-t border-border/40 shrink-0" role="form" aria-label="Import collection">
               <Input autoFocus aria-label="Collection Base64 code" value={importValue} onChange={(e) => setImportValue(e.target.value)}
-                placeholder="Paste Base64 code…" className="h-7 text-xs flex-1"
+                placeholder="Paste code…" className="h-7 text-xs flex-1"
                 onKeyDown={(e) => { if (e.key === 'Enter') void handleImport(); if (e.key === 'Escape') { setShowImport(false); setImportValue('') } }} />
               <Button size="icon" variant="ghost" aria-label="Import" className="h-7 w-7" onClick={() => void handleImport()}><Check size={11} /></Button>
               <Button size="icon" variant="ghost" aria-label="Cancel" className="h-7 w-7" onClick={() => { setShowImport(false); setImportValue('') }}><XIcon size={11} /></Button>

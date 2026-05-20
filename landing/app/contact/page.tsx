@@ -12,37 +12,33 @@ export const metadata: Metadata = {
 const CHANNELS = [
   {
     icon: MessageCircle,
-    title: 'Discord — bugs, features & community',
-    description:
-      'The main hub for everything: report a bug, suggest a feature, ask for help or just hang out with other players. I read every message.',
-    cta: 'Join the Discord',
+    title: 'Discord',
+    description: 'Bugs, features, questions — fastest way to reach me.',
+    cta: 'Join Discord',
     href: SITE_CONFIG.links.discord,
     primary: true,
   },
   {
     icon: Mail,
-    title: 'Email — general & private',
-    description:
-      'Legal requests, partnership enquiries or anything you prefer to keep off a public server.',
-    cta: `contact@overframe.app`,
+    title: 'Email',
+    description: 'Legal, partnerships, or anything you prefer to keep private.',
+    cta: 'contact@overframe.app',
     href: `mailto:${SITE_CONFIG.links.email}`,
     primary: false,
   },
   {
     icon: ShieldAlert,
-    title: 'Security disclosures',
-    description:
-      'Found a vulnerability? Please report it privately by email so I can patch it before it becomes public.',
+    title: 'Security',
+    description: 'Found a vulnerability? Report it privately so I can patch it first.',
     cta: 'security@overframe.app',
     href: 'mailto:security@overframe.app',
     primary: false,
   },
   {
     icon: GithubIcon,
-    title: 'GitHub — for contributors',
-    description:
-      'If you are a developer and want to contribute code, open a PR or browse the source, you are welcome on GitHub.',
-    cta: 'View the repository',
+    title: 'GitHub',
+    description: 'Source code, issues and pull requests.',
+    cta: 'Browse the repo',
     href: SITE_CONFIG.links.github,
     primary: false,
   },
@@ -57,8 +53,7 @@ export default function ContactPage() {
           Get in touch
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-          Overframe is built solo. Discord is the fastest way to reach me — it&rsquo;s where bugs
-          get squashed and features get shaped. Email me for anything private.
+          Discord for everything. Email for anything private.
         </p>
       </header>
 

@@ -74,6 +74,7 @@ const api = {
     togglePin: (collectionId: string, linkId: string) =>
       ipcRenderer.invoke(IPC.CollectionsTogglePin, collectionId, linkId),
     export: (id: string): Promise<string | null> => ipcRenderer.invoke(IPC.CollectionsExport, id),
+    share: (id: string): Promise<string | null> => ipcRenderer.invoke(IPC.CollectionsShare, id),
     import: (base64: string, profileId: string): Promise<Collection | null> =>
       ipcRenderer.invoke(IPC.CollectionsImport, base64, profileId),
     setIconUrl: (id: string, iconUrl: string | null): Promise<Collection | null> =>
@@ -114,7 +115,8 @@ const api = {
     reportLayoutMap: (map: Record<string, string>) => ipcRenderer.send(IPC.SystemLayoutMap, map),
     pickFolder: (): Promise<string | null> => ipcRenderer.invoke(IPC.SystemPickFolder),
     uninstall: (): Promise<void> => ipcRenderer.invoke(IPC.SystemUninstall),
-    openFolder: (target: 'userData' | 'app'): Promise<void> => ipcRenderer.invoke(IPC.SystemOpenFolder, target),
+    openFolder: (target: 'userData' | 'app' | 'logs'): Promise<void> => ipcRenderer.invoke(IPC.SystemOpenFolder, target),
+    simulateCrash: (): Promise<void> => ipcRenderer.invoke(IPC.DevSimulateCrash),
     resetData: (): Promise<void> => ipcRenderer.invoke(IPC.SystemResetData),
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke(IPC.AppCheckForUpdates),
   },

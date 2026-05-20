@@ -50,9 +50,39 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           name: Overframe ${{ github.ref_name }}
-          body: ""
+          generate_release_notes: true
           files: |
             dist/make/squirrel.windows/x64/Overframe-Setup.exe
             dist/make/squirrel.windows/x64/RELEASES
             dist/make/squirrel.windows/x64/*.nupkg
             dist/make/zip/win32/x64/*.zip
+
+      - name: Discord release notification
+        if: success()
+        shell: bash
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "DISCORD_WEBHOOK_URL secret not set — skipping notification."
+            exit 0
+          fi
+          VERSION="${{ github.ref_name }}"
+          RELEASE_URL="https://github.com/overframeApp-arch/Overframe/releases/tag/${VERSION}"
+          DOWNLOAD_URL="https://github.com/overframeApp-arch/Overframe/releases/download/${VERSION}/Overframe-Setup.exe"
+          curl -s -X POST -H "Content-Type: application/json" \
+            -d "{
+              \"username\": \"Overframe\",
+              \"embeds\": [{
+                \"title\": \"Overframe ${VERSION} est disponible !\",
+                \"description\": \"Une nouvelle version vient d'être publiée. Télécharge-la gratuitement dès maintenant.\",
+                \"color\": 8141549,
+                \"url\": \"${RELEASE_URL}\",
+                \"fields\": [
+                  { \"name\": \"Installer\", \"value\": \"[Overframe-Setup.exe](${DOWNLOAD_URL})\", \"inline\": true },
+                  { \"name\": \"Notes de version\", \"value\": \"[Voir sur GitHub](${RELEASE_URL})\", \"inline\": true }
+                ],
+                \"footer\": { \"text\": \"Windows · Gratuit · Open source\" }
+              }]
+            }" \
+            "$DISCORD_WEBHOOK"
