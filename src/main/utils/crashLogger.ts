@@ -27,9 +27,9 @@ export function logCrash(type: string, error: unknown): void {
     fs.appendFileSync(file, entry, 'utf8')
 
     // Trim if the file grew too large — keep the most recent half.
-    const stat = fs.statSync(file)
-    if (stat.size > MAX_BYTES) {
-      const content = fs.readFileSync(file, 'utf8')
+    // Read content directly to avoid a TOCTOU race between stat and read.
+    const content = fs.readFileSync(file, 'utf8')
+    if (Buffer.byteLength(content, 'utf8') > MAX_BYTES) {
       fs.writeFileSync(file, content.slice(-MAX_BYTES / 2), 'utf8')
     }
   } catch {

@@ -28,10 +28,30 @@ async function getReleases(): Promise<GHRelease[]> {
   }
 }
 
+function parseInline(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = []
+  const regex = /(\*\*(.+?)\*\*)|(`(.+?)`)|(\[(.+?)\]\((.+?)\))/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index))
+    if (match[1]) {
+      parts.push(<strong key={match.index} className="font-semibold text-foreground">{match[2]}</strong>)
+    } else if (match[3]) {
+      parts.push(<code key={match.index} className="rounded bg-muted px-1 font-mono text-xs">{match[4]}</code>)
+    } else if (match[5]) {
+      parts.push(<a key={match.index} href={match[7]} target="_blank" rel="noreferrer noopener" className="text-primary underline-offset-2 hover:underline">{match[6]}</a>)
+    }
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
+  return parts
+}
+
 function renderBody(body: string) {
   const lines = body.trim().split('\n')
   const elements: React.ReactNode[] = []
-  let bullets: string[] = []
+  let bullets: React.ReactNode[][] = []
 
   function flushBullets() {
     if (!bullets.length) return
@@ -41,7 +61,7 @@ function renderBody(body: string) {
         {captured.map((b, i) => (
           <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
             <span className="mt-[0.45rem] h-1 w-1 shrink-0 rounded-full bg-primary/50" />
-            {b}
+            <span>{b}</span>
           </li>
         ))}
       </ul>,
@@ -52,13 +72,27 @@ function renderBody(body: string) {
   for (const line of lines) {
     const t = line.trim()
     if (!t) { flushBullets(); continue }
-    if (t.startsWith('- ') || t.startsWith('* ')) {
-      bullets.push(t.slice(2))
+    if (t.startsWith('## ')) {
+      flushBullets()
+      elements.push(
+        <h2 key={`h2-${elements.length}`} className="mt-6 text-base font-semibold text-foreground">
+          {t.slice(3)}
+        </h2>,
+      )
+    } else if (t.startsWith('### ')) {
+      flushBullets()
+      elements.push(
+        <h3 key={`h3-${elements.length}`} className="mt-4 text-sm font-semibold text-foreground">
+          {t.slice(4)}
+        </h3>,
+      )
+    } else if (t.startsWith('- ') || t.startsWith('* ')) {
+      bullets.push(parseInline(t.slice(2)))
     } else {
       flushBullets()
       elements.push(
         <p key={`p-${elements.length}`} className="mt-3 text-sm text-muted-foreground">
-          {t}
+          {parseInline(t)}
         </p>,
       )
     }

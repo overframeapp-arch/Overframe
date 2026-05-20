@@ -3,7 +3,6 @@
 import { ShieldAlert, ShieldCheck, Lock } from 'lucide-react'
 import { useInView } from '@/lib/useInView'
 import { cn } from '@/lib/cn'
-import { SITE_CONFIG } from '@/lib/config'
 
 const VIRUSTOTAL_URL =
   'https://www.virustotal.com/gui/file/fb5e1ad4fed0f002553b92c2bac201c4d3f100c44fe8371bdd75ff9a5c5c7165/detection'
