@@ -24,26 +24,28 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           RELEASE_URL="https://github.com/overframeApp-arch/Overframe/releases/tag/${VERSION}"
           DOWNLOAD_URL="https://github.com/overframeApp-arch/Overframe/releases/download/${VERSION}/Overframe-Setup.exe"
-          PAYLOAD=$(jq -n \
-            --arg version "$VERSION" \
-            --arg release_url "$RELEASE_URL" \
-            --arg download_url "$DOWNLOAD_URL" \
-            '{
-              username: "Overframe",
-              embeds: [{
-                title: ("Overframe " + $version + " is out!"),
-                description: "A new version is available. Download it for free.",
-                color: 8141549,
-                url: $release_url,
-                fields: [
-                  { name: "Installer", value: ("[Overframe-Setup.exe](" + $download_url + ")"), inline: true },
-                  { name: "Release notes", value: ("[View on GitHub](" + $release_url + ")"), inline: true }
-                ],
-                footer: { text: "Windows - Free - Open source" }
-              }]
-            }')
-          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST -H "Content-Type: application/json" \
-            -d "$PAYLOAD" "$DISCORD_WEBHOOK")
-          echo "Discord response: $HTTP"
-          [ "$HTTP" = "204" ] && echo "Success" || exit 1
+          export VERSION RELEASE_URL DOWNLOAD_URL DISCORD_WEBHOOK
+          python3 - <<EOF
+import json, os, urllib.request
+version = os.environ['VERSION']
+release_url = os.environ['RELEASE_URL']
+download_url = os.environ['DOWNLOAD_URL']
+webhook = os.environ['DISCORD_WEBHOOK']
+payload = json.dumps({
+  'username': 'Overframe',
+  'embeds': [{
+    'title': f'Overframe {version} is out!',
+    'description': 'A new version is available. Download it for free.',
+    'color': 8141549,
+    'url': release_url,
+    'fields': [
+      {'name': 'Installer', 'value': f'[Overframe-Setup.exe]({download_url})', 'inline': True},
+      {'name': 'Release notes', 'value': f'[View on GitHub]({release_url})', 'inline': True},
+    ],
+    'footer': {'text': 'Windows - Free - Open source'},
+  }]
+}).encode()
+req = urllib.request.Request(webhook, data=payload, headers={'Content-Type': 'application/json'})
+with urllib.request.urlopen(req) as r:
+  print(f'Discord response: {r.status}')
+EOF
