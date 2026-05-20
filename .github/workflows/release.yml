@@ -70,19 +70,25 @@ jobs:
           VERSION="${{ github.ref_name }}"
           RELEASE_URL="https://github.com/overframeApp-arch/Overframe/releases/tag/${VERSION}"
           DOWNLOAD_URL="https://github.com/overframeApp-arch/Overframe/releases/download/${VERSION}/Overframe-Setup.exe"
-          curl -s -X POST -H "Content-Type: application/json" \
-            -d "{
-              \"username\": \"Overframe\",
-              \"embeds\": [{
-                \"title\": \"Overframe ${VERSION} est disponible !\",
-                \"description\": \"Une nouvelle version vient d'être publiée. Télécharge-la gratuitement dès maintenant.\",
-                \"color\": 8141549,
-                \"url\": \"${RELEASE_URL}\",
-                \"fields\": [
-                  { \"name\": \"Installer\", \"value\": \"[Overframe-Setup.exe](${DOWNLOAD_URL})\", \"inline\": true },
-                  { \"name\": \"Notes de version\", \"value\": \"[Voir sur GitHub](${RELEASE_URL})\", \"inline\": true }
+          PAYLOAD=$(jq -n \
+            --arg version "$VERSION" \
+            --arg release_url "$RELEASE_URL" \
+            --arg download_url "$DOWNLOAD_URL" \
+            '{
+              username: "Overframe",
+              embeds: [{
+                title: ("Overframe " + $version + " is out!"),
+                description: "A new version is available. Download it for free now.",
+                color: 8141549,
+                url: $release_url,
+                fields: [
+                  { name: "Installer", value: ("[Overframe-Setup.exe](" + $download_url + ")"), inline: true },
+                  { name: "Release notes", value: ("[View on GitHub](" + $release_url + ")"), inline: true }
                 ],
-                \"footer\": { \"text\": \"Windows · Gratuit · Open source\" }
+                footer: { text: "Windows · Free · Open source" }
               }]
-            }" \
+            }')
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X POST -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
             "$DISCORD_WEBHOOK"
