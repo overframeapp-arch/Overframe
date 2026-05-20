@@ -11,7 +11,7 @@ export default function HomePage() {
   return (
     <>
       <HeroSection />
-      <DemoVideo src="/demo.mp4" />
+      <DemoVideo src="https://github.com/overframeApp-arch/Overframe/releases/download/v0.1.0/demo.mp4" />
       <HowItWorks />
       <CreatorNote />
       <CommunitySection />
