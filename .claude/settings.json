@@ -12,7 +12,6 @@
       "Bash(curl http://localhost:9119*)"
     ],
     "deny": [
-      "Bash(curl *)",
       "Bash(wget *)",
       "Bash(npx *)"
     ]
