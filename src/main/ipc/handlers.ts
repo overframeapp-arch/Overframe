@@ -1,5 +1,6 @@
 import { ipcMain, shell, app, dialog, autoUpdater, webContents } from 'electron'
 import { spawn } from 'child_process'
+import fs from 'fs'
 import path from 'path'
 import { IPC } from '@shared/ipc'
 import { store } from '../store'
@@ -13,6 +14,7 @@ import { DEFAULT_HOMEPAGE, DEFAULT_SHORTCUTS } from '@shared/types'
 import type { BookmarkPopupPayload, AchievementPayload, CollectionsPopupPayload, LinkOverflowPayload, MemoryPopupPayload, Settings, Shortcuts } from '@shared/types'
 import { getVisibleGames } from '../utils/getVisibleGames'
 import { crashLogPath, ensureLogsDir, logCrash } from '../utils/crashLogger'
+import { logConsole, readLog } from '../utils/devLogger'
 
 // ── Auto-updater ───────────────────────────────────────────────────────────
 // Only functional in packaged builds. In dev mode we immediately reply with
@@ -471,6 +473,27 @@ export function registerIpcHandlers(deps: Deps): void {
   ipcMain.handle(IPC.DevSimulateCrash, () => {
     if (app.isPackaged) return
     logCrash('simulated', new Error('Test crash written from developer tools'))
+  })
+
+  // ── Dev: renderer console → log file ────────────────────────────────────────
+  if (!app.isPackaged) {
+    overlay.win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+      logConsole('renderer', level, message, line, sourceId)
+    })
+  }
+
+  // ── Dev: screenshot & log reading ───────────────────────────────────────────
+  ipcMain.handle(IPC.DevScreenshot, async () => {
+    if (app.isPackaged) return null
+    const image = await overlay.win.webContents.capturePage()
+    const dest = path.join(app.getPath('temp'), 'overframe-dev-screenshot.png')
+    fs.writeFileSync(dest, image.toPNG())
+    return dest
+  })
+
+  ipcMain.handle(IPC.DevReadLog, (_e, source: 'renderer' | 'webview' | 'crash', lines = 200) => {
+    if (app.isPackaged) return null
+    return readLog(source, lines)
   })
 
   ipcMain.handle(IPC.SystemResetData, async (_e) => {

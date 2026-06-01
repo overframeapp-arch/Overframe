@@ -1,0 +1,18 @@
+#!/bin/sh
+# Git pre-commit hook — runs before every commit.
+# Blocks the commit if TypeScript or lint checks fail.
+# Tests run in CI (too slow for a commit hook).
+#
+# Install: pnpm setup-hooks
+
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+printf "\033[36m→ Typecheck...\033[0m\n"
+pnpm typecheck
+
+printf "\033[36m→ Lint...\033[0m\n"
+pnpm lint
+
+printf "\033[32m✓ Pre-commit checks passed\033[0m\n"

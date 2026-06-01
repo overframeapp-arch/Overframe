@@ -1,4 +1,5 @@
 import { WebContentsView, app, session, Menu, MenuItem, clipboard } from 'electron'
+import { logConsole } from '../utils/devLogger'
 import { randomUUID } from 'node:crypto'
 import type { TabState, MemoryEntry, MemorySnapshot, DownloadEventState, SearchEngineId } from '@shared/types'
 import { DEFAULT_HOMEPAGE, SEARCH_ENGINES } from '@shared/types'
@@ -389,6 +390,13 @@ export class TabManager {
 
   private wireWebContents(tab: ManagedTab): void {
     const wc = tab.view.webContents
+
+    if (!app.isPackaged) {
+      wc.on('console-message', (_e, level, message, line, sourceId) => {
+        logConsole('webview', level, message, line, sourceId)
+      })
+    }
+
     const update = (patch: Partial<TabState>): void => {
       if (!this.tabs.has(tab.id)) return
       tab.state = { ...tab.state, ...patch }

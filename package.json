@@ -28,6 +28,7 @@
     "gen-assets": "node scripts/gen-assets.mjs",
     "gen-loading-gif": "node scripts/gen-loading-gif.mjs",
     "check:deps": "node scripts/check-dangerous-deps.mjs",
+    "setup-hooks": "powershell -NonInteractive -File scripts/install-hooks.ps1",
     "landing": "pnpm --filter overframe-landing dev",
     "landing:build": "pnpm --filter overframe-landing build",
     "landing:start": "pnpm --filter overframe-landing start"

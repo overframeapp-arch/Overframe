@@ -129,6 +129,10 @@ export const IPC = {
   DevStoreReset: 'dev:storeReset',
   /** Writes a synthetic crash entry to crash.log — dev only. */
   DevSimulateCrash: 'dev:simulateCrash',
+  /** Captures the overlay window and saves a PNG to %TEMP%\overframe-dev-screenshot.png. Returns the path. */
+  DevScreenshot: 'dev:screenshot',
+  /** Returns the last N lines of a dev log file (renderer | webview | crash). */
+  DevReadLog: 'dev:readLog',
   /** Opens a system folder in Windows Explorer. */
   SystemOpenFolder: 'system:openFolder',
   /** Wipes all user data (store + localStorage) and relaunches. */

@@ -119,6 +119,11 @@ const api = {
     simulateCrash: (): Promise<void> => ipcRenderer.invoke(IPC.DevSimulateCrash),
     resetData: (): Promise<void> => ipcRenderer.invoke(IPC.SystemResetData),
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke(IPC.AppCheckForUpdates),
+    /** Dev only — captures the overlay window to %TEMP%\overframe-dev-screenshot.png. Returns the path. */
+    devScreenshot: (): Promise<string | null> => ipcRenderer.invoke(IPC.DevScreenshot),
+    /** Dev only — returns the last N lines of a log file. */
+    devReadLog: (source: 'renderer' | 'webview' | 'crash', lines?: number): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.DevReadLog, source, lines),
   },
   achievement: {
     notify: (title: string): Promise<void> => ipcRenderer.invoke(IPC.AchievementNotify, { title }),

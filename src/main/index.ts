@@ -25,6 +25,7 @@ import { buildShortcutActions } from './lifecycle/shortcutActions'
 import { IPC } from '@shared/ipc'
 import { DEFAULT_SHORTCUTS, DEFAULT_PROFILE_ID, type Shortcuts } from '@shared/types'
 import { logCrash } from './utils/crashLogger'
+import { startDevServer } from './utils/devServer'
 
 /** Single-instance lock — a second launch focuses the existing instance. */
 const gotLock = isSquirrelEvent ? true : app.requestSingleInstanceLock()
@@ -130,6 +131,7 @@ app.whenReady().then(() => {
   tray.init()
 
   registerIpcHandlers({ overlay, popup, tabs, profiles, collections, shortcuts, setStartupWithWindows })
+  startDevServer({ overlay, tabs, profiles })
 
   // ── Tab events ─────────────────────────────────────────────────────────────
 
