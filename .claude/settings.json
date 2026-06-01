@@ -4,15 +4,30 @@
       "Bash(pnpm *)",
       "Bash(git *)",
       "Bash(node *)",
-      "Bash(npx *)",
       "Bash(ls)",
       "Bash(ls *)",
       "Bash(cat *)",
       "Bash(type *)",
-      "Bash(curl *)"
+      "Bash(curl http://127.0.0.1:9119*)",
+      "Bash(curl http://localhost:9119*)"
+    ],
+    "deny": [
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(npx *)"
     ]
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NonInteractive -File .claude/hooks/session-start.ps1"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -31,6 +46,10 @@
           {
             "type": "command",
             "command": "powershell -NonInteractive -File .claude/hooks/post-edit.ps1"
+          },
+          {
+            "type": "command",
+            "command": "powershell -NonInteractive -File .claude/hooks/guide-router.ps1"
           }
         ]
       }

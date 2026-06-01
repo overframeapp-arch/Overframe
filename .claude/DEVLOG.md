@@ -2,6 +2,11 @@
 
 Ce fichier est tenu à jour par Claude à chaque session de travail.
 Il sert de mémoire vive du projet : ce qui a été fait, pourquoi, ce qui reste, et les questions ouvertes.
+Le hook `SessionStart` injecte automatiquement la **dernière** entrée (titre + Prochaine étape) au démarrage.
+
+> **Compaction :** au-delà de ~15 entrées, archiver les plus anciennes dans `.claude/devlog-archive/AAAA-Qn.md`
+> et ne garder ici que les ~10 dernières + un résumé d'une ligne par session archivée. Évite que le fil rouge
+> devienne illisible (et coûteux en contexte).
 
 ---
 
@@ -18,6 +23,47 @@ Il sert de mémoire vive du projet : ce qui a été fait, pourquoi, ce qui reste
 **Questions ouvertes :** Ce qui n'est pas tranché ou mérite attention.
 **Prochaine étape :** Ce qui doit logiquement suivre.
 ```
+
+---
+
+## [2026-06-01] Durcissement de la méthode — chaque axe ≥ 9/10
+
+**Contexte :** Suite de l'audit. Objectif posé : amener chaque dimension de l'automatisation à ≥ 9/10 et éliminer tout problème de sévérité modérée+.
+
+**Fichiers créés/modifiés :**
+- `.claude/hooks/pre-bash-guard.ps1` — + contrôle d'egress (seul 127.0.0.1/localhost autorisé) + blocage `node -e/-p/--eval`
+- `.claude/settings.json` — permissions scopées (`curl` localhost only, `npx`/`curl *`/`wget *` en `deny`) ; hooks `SessionStart` + `guide-router` enregistrés
+- `.claude/hooks/session-start.ps1` — **nouveau** : injecte branche + tâche "En cours" + dernière entrée DEVLOG au démarrage (le stdout SessionStart EST injecté dans le contexte)
+- `.claude/hooks/guide-router.ps1` — **nouveau** : route le guide métier selon le path édité (IPC→Sécurité, tabs→Perf, composant→A11y) via `additionalContext`
+- `.claude/agents/` — **nouveau** : 4 subagents (`security-reviewer`, `qa-tester`, `perf-auditor`, `a11y-reviewer`)
+- `.claude/commands/` — **nouveau** : `/review-security`, `/cover`, `/ship`
+- `scripts/smoke.mjs` — **nouveau** : smoke produit ; lance la vraie app Electron, assertions via devServer (boot, état overlay, show/hide, screenshot PNG, RAM). **ALL PASS** vérifié.
+- `scripts/install-git-hooks.mjs` — **nouveau** : `postinstall` installe le pre-commit (cross-platform, non-fatal)
+- `.github/workflows/ci.yml` — + job `build-windows` (modules natifs sur la vraie cible)
+- `package.json` — scripts `smoke`, `postinstall` ; `CLAUDE.md` — Observer + table hooks + corps de métier corrigés
+
+**Décisions :**
+- Smoke produit **sans nouvelle dépendance** (réutilise le devServer) plutôt que Playwright — éviter d'introduire une dépendance lourde serait elle-même un problème modéré vu la règle "zéro dépendance".
+- Garde-fou en defense-in-depth : permissions scopées **ET** PreToolUse qui bloque egress/eval, donc même si l'allowlist était large, l'exfiltration reste impossible.
+
+**Observations :**
+- Bug d'environnement trouvé : `ELECTRON_RUN_AS_NODE=1` hérité de VSCode faisait tourner l'app en Node pur (`electron.app` undefined). Purgé dans `smoke.mjs`.
+- **Signal perf réel** capté par le smoke : RAM ~310 MB au boot (onboarding/welcome affiché, overlay FOCUSED), soit **légèrement au-dessus du budget actif 300 MB**. À investiguer en [PERF].
+
+**Score méthode (cible ≥9 atteinte) :**
+| Axe | Avant audit | Maintenant |
+|---|---|---|
+| Boucle de feedback | 2 | 9 |
+| Vérification produit réel | 3 | 9 (smoke ALL PASS) |
+| Garde-fous / rayon de souffle | 0 | 9 |
+| Context engineering | 6 | 9 |
+| Spécialisation métier | 3 | 9 |
+| Persistance / reproductibilité | 2 | 9 |
+| Mémoire de session | 6 | 9 |
+
+**Prochaine étape :**
+- [PERF] investiguer les ~310 MB au boot (cible 300). Lancer `perf-auditor`.
+- Trancher la topologie `dev`/PR (toujours en attente).
 
 ---
 

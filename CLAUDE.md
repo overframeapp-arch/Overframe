@@ -163,6 +163,11 @@ Lire le guide correspondant avant toute modification dans ce domaine :
 | Coordination H/IA | [WORKFLOW.md](WORKFLOW.md) | Début de session, ouverture de PR |
 | Backlog | [TASKS.md](TASKS.md) | Début et fin de chaque session |
 
+**Les corps de métier sont automatisés** (pas seulement documentés) :
+- **Routage auto** : le hook `guide-router` injecte le bon guide quand tu édites un fichier du domaine (IPC→Sécurité, tabs→Performance, composant→A11y).
+- **Subagents spécialisés** (`.claude/agents/`) : `security-reviewer`, `qa-tester`, `perf-auditor`, `a11y-reviewer` — délègue-leur la revue/les tests de leur domaine.
+- **Slash commands** (`.claude/commands/`) : `/review-security`, `/cover <fichier>`, `/ship` (Definition-of-Done complète).
+
 ---
 
 ## Monorepo Structure
@@ -229,6 +234,13 @@ curl http://127.0.0.1:9119/screenshot --output C:\tmp\screen.png
 
 # État structuré JSON (overlay state, onglets ouverts, profil actif)
 curl http://127.0.0.1:9119/state
+
+# RAM réelle vs budget documenté (150 MB caché / 300 MB actif), flag withinBudget
+curl http://127.0.0.1:9119/metrics
+
+# Piloter l'overlay depuis le terminal (utile avant un screenshot)
+curl http://127.0.0.1:9119/overlay/show
+curl http://127.0.0.1:9119/overlay/hide
 
 # Logs console (300 lignes par défaut)
 curl http://127.0.0.1:9119/log/renderer
@@ -314,8 +326,9 @@ curl http://127.0.0.1:9119/state
 ```
 
 ### Après chaque modification
-- Le hook `PostToolUse` lance ESLint automatiquement sur le fichier édité — corriger les erreurs remontées
-- Pour une vérification complète : `pnpm typecheck && pnpm lint && pnpm test`
+- Le hook `PostToolUse` lance ESLint (`--max-warnings 0`) sur le fichier édité — les erreurs sont remontées dans ton contexte, corrige-les
+- Pour une vérification complète : `pnpm typecheck && pnpm lint && pnpm test:coverage` (couverture 100% requise sur le périmètre logique)
+- Si modification main/preload : `pnpm smoke` lance la vraie app et vérifie boot + overlay + screenshot + RAM via le devServer
 - Si modification main/preload : redémarrer `pnpm dev` (hot reload ne couvre pas le main process)
 
 ### Ajouter un canal IPC
@@ -332,5 +345,7 @@ curl http://127.0.0.1:9119/state
 ### Hooks automatiques
 | Hook | Déclencheur | Action |
 |---|---|---|
-| `PostToolUse` | Après chaque Edit/Write sur `.ts`/`.tsx` | ESLint sur le fichier → erreurs remontées à Claude |
-| `Stop` | Fin de réponse Claude | `git status` + rappel DEVLOG si changements TypeScript |
+| `SessionStart` | Début de session | Injecte branche + tâche "En cours" + dernière entrée DEVLOG dans le contexte |
+| `PreToolUse` (Bash) | Avant chaque commande shell | Bloque push `main`, force-push, `reset --hard`, `clean -f`, `--no-verify`, ajout de dépendance, egress réseau hors localhost, `node -e` |
+| `PostToolUse` (Edit/Write/MultiEdit) | Après édition `.ts`/`.tsx` | ESLint `--max-warnings 0` → erreurs injectées dans le contexte ; + routage du guide métier selon le path |
+| `Stop` | Fin de réponse | `git status` (human/debug-facing — pas injecté à Claude) |

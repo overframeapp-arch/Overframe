@@ -28,7 +28,9 @@
     "gen-assets": "node scripts/gen-assets.mjs",
     "gen-loading-gif": "node scripts/gen-loading-gif.mjs",
     "check:deps": "node scripts/check-dangerous-deps.mjs",
-    "setup-hooks": "powershell -NonInteractive -File scripts/install-hooks.ps1",
+    "smoke": "pnpm build && node scripts/smoke.mjs",
+    "postinstall": "node scripts/install-git-hooks.mjs",
+    "setup-hooks": "node scripts/install-git-hooks.mjs",
     "landing": "pnpm --filter overframe-landing dev",
     "landing:build": "pnpm --filter overframe-landing build",
     "landing:start": "pnpm --filter overframe-landing start"

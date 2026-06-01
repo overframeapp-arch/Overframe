@@ -156,7 +156,8 @@ Claude ne peut pas tester avec un vrai jeu. L'humain doit :
 | TypeScript | Claude | Zéro erreur `tsc --noEmit` | Pre-commit hook + CI |
 | Lint | Claude | Zéro warning ESLint | Pre-commit hook + CI |
 | Tests unitaires | Claude | Couvrir tout nouveau manager/util | `pnpm test` |
-| Tests E2E | Humain (manuel) | Flows critiques testés avant release | Test gaming réel |
+| Smoke produit | Claude | Boot + overlay + observer OK après tout changement main/preload | `pnpm smoke` (lance la vraie app) |
+| Tests E2E gaming | Humain (manuel) | Flows in-game testés avant release | Test gaming réel |
 | Sécurité IPC | Claude | Checklist `.claude/guides/SECURITY.md` | Code review |
 | Accessibilité | Claude | WCAG AA minimum | `.claude/guides/ACCESSIBILITY.md` + test clavier |
 | Performance RAM | Claude | < 150MB idle | `curl /state` + Task Manager |

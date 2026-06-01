@@ -57,4 +57,20 @@ if ($c -match '\b(pnpm|yarn)\s+add\b' -or $c -match '\bnpm\s+(install|i)\s+[^-\s
     Deny "ajout de dependance npm interdit sans accord explicite (TASKS.md). Auditer avec 'pnpm check:deps'."
 }
 
+# 7. No network egress to non-local hosts. The dev observer on 127.0.0.1:9119 is the
+#    only allowed target; anything else is an exfiltration / SSRF risk.
+if ($c -match '\b(curl|wget|Invoke-WebRequest|iwr)\b') {
+    foreach ($m in [regex]::Matches($c, 'https?://([^/\s''"]+)')) {
+        $urlHost = $m.Groups[1].Value.ToLower()
+        if ($urlHost -notmatch '^(127\.0\.0\.1|localhost)(:\d+)?$') {
+            Deny "acces reseau sortant vers '$urlHost' interdit (seul 127.0.0.1/localhost est autorise)."
+        }
+    }
+}
+
+# 8. No arbitrary inline code eval — bypasses every rule above.
+if ($c -match '\bnode\b' -and $c -match '(\s-e\b|\s-p\b|--eval\b|--print\b)') {
+    Deny "'node -e/-p/--eval' interdit -- execution de code arbitraire."
+}
+
 exit 0

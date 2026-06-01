@@ -25,6 +25,7 @@ _(vide — à remplir par Claude au début d'une session de travail)_
 ## Priorité haute — Chemin vers v1.0
 
 ### Qualité & robustesse
+- [ ] **[PERF] RAM au boot ~310 MB > budget 300** — détecté par `pnpm smoke` le 2026-06-01 (overlay FOCUSED / welcome au lancement). Lancer le subagent `perf-auditor`, isoler la cause (welcome page ? WebContentsView retenue ?), consigner avant/après.
 - [ ] **[PERF] Audit performance** : `curl http://127.0.0.1:9119/metrics` idle + 3 onglets. Corriger si hors budget (< 150 MB idle, < 300 MB actif). Consigner avant/après chiffrés dans DEVLOG. Guide : `.claude/guides/PERFORMANCE.md`
 - [ ] **[FIX] Multi-monitor** : vérifier que la fenêtre se souvient du bon écran après un changement de configuration moniteurs.
 - [ ] **[FIX] Gestion d'erreur page load** : affiner l'état "failed to load" dans les WebContentsViews (réseau coupé, SSL invalide). Ajouter test de régression.
@@ -58,6 +59,12 @@ _(vide — à remplir par Claude au début d'une session de travail)_
 
 ## Done — Récent
 
+- [x] **Durcissement méthode — chaque axe ≥9/10** (2026-06-01)
+  - Garde-fous : egress hors-localhost + `node -e` bloqués, permissions scopées
+  - `SessionStart` hook (boot avec branche+TASKS+DEVLOG) ; routage auto des guides métier
+  - 4 subagents (`security-reviewer`/`qa-tester`/`perf-auditor`/`a11y-reviewer`) + commands `/review-security` `/cover` `/ship`
+  - **Smoke produit** `pnpm smoke` (lance la vraie app, vérifie overlay/screenshot/RAM) — ALL PASS
+  - `postinstall` installe le pre-commit ; job CI `build-windows` (natif)
 - [x] **Audit méthode + couverture logique métier à 100%** (2026-06-01)
   - Hooks réparés : feedback ESLint réellement remonté à Claude (`additionalContext`), `--max-warnings 0`
   - Garde-fou `PreToolUse` : bloque push main / force-push / reset --hard / clean -f / --no-verify / npm add
