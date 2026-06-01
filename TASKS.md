@@ -10,7 +10,7 @@
 
 **Version en cours :** v0.6 → v1.0 (Beta Polish → Release)
 **Branche active :** `dev`
-**Dernière session :** 2026-05-29 — Audit expert corps de métiers — guides DESIGN/PERF/TESTING, /metrics devServer, security.yml sur dev
+**Dernière session :** 2026-06-01 — Audit chirurgical de la méthode : hooks réparés (feedback réel à Claude), garde-fou PreToolUse, setup commité+poussé, couverture 100% sur la logique métier + gate CI
 
 Le cœur du produit est fonctionnel : overlay, tabs, profils, collections, sessions, raccourcis globaux, tray, auto-update, onboarding. L'objectif immédiat est de solidifier pour la release publique v1.0.
 
@@ -28,9 +28,6 @@ _(vide — à remplir par Claude au début d'une session de travail)_
 - [ ] **[PERF] Audit performance** : `curl http://127.0.0.1:9119/metrics` idle + 3 onglets. Corriger si hors budget (< 150 MB idle, < 300 MB actif). Consigner avant/après chiffrés dans DEVLOG. Guide : `.claude/guides/PERFORMANCE.md`
 - [ ] **[FIX] Multi-monitor** : vérifier que la fenêtre se souvient du bon écran après un changement de configuration moniteurs.
 - [ ] **[FIX] Gestion d'erreur page load** : affiner l'état "failed to load" dans les WebContentsViews (réseau coupé, SSL invalide). Ajouter test de régression.
-- [ ] **[TEST] Couvrir CollectionsManager** : CRUD complet, export Base64, import. Guide : `.claude/guides/TESTING.md`
-  - Critères : `pnpm test:coverage` montre > 80 % sur `CollectionsManager.ts`
-- [ ] **[TEST] Couvrir SessionManager** : save/restore/restoreOrCreate, cas edge (profil inexistant, store vide).
 - [ ] **[SEC] Valider inputs IPC collections + profiles** : vérifier que chaque handler valide le type et la plage de ses arguments. Guide : `.claude/guides/SECURITY.md`
 
 ### UX & polish
@@ -61,6 +58,12 @@ _(vide — à remplir par Claude au début d'une session de travail)_
 
 ## Done — Récent
 
+- [x] **Audit méthode + couverture logique métier à 100%** (2026-06-01)
+  - Hooks réparés : feedback ESLint réellement remonté à Claude (`additionalContext`), `--max-warnings 0`
+  - Garde-fou `PreToolUse` : bloque push main / force-push / reset --hard / clean -f / --no-verify / npm add
+  - Setup d'autonomie enfin commité **et poussé** sur `origin/chore/claude-setup`
+  - 147 tests, **100% stmts/branches/funcs/lines** sur l'allowlist logique (`vitest.config.ts`) + gate 100% en CI
+  - Couvre : `[TEST] CollectionsManager` (CRUD + export/import Base64) et `[TEST] SessionManager` (save/restore/autosave)
 - [x] Setup autonomie Claude : CLAUDE.md, devLogger, devServer, hooks, DEVLOG, TASKS (2026-05-29)
 - [x] Core overlay + états (HIDDEN / FOCUSED / CLICK_THROUGH)
 - [x] TabManager + WebContentsViews multi-onglets

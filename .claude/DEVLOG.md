@@ -21,6 +21,46 @@ Il sert de mémoire vive du projet : ce qui a été fait, pourquoi, ce qui reste
 
 ---
 
+## [2026-06-01] Audit chirurgical de la méthode + couverture logique à 100%
+
+**Contexte :** Audit complet du système d'autonomie lui-même (pas du produit). Objectif final : compléter la couverture de test. L'audit a révélé que la « boucle de feedback fermée » décrite dans les DEVLOG précédents ne fonctionnait pas réellement.
+
+**Constats (par sévérité) :**
+- 🔴 **Boucle de feedback ouverte** : `post-edit.ps1` et `session-end.ps1` écrivaient sur `stdout` + `exit 0`. Doc officielle : pour `PostToolUse`/`Stop`, stdout va au debug log, **jamais à Claude**. Les erreurs ESLint n'étaient donc jamais remontées. → corrigé via `hookSpecificOutput.additionalContext`.
+- 🔴 **Setup jamais commité** : tout `.claude/`, CLAUDE.md, devServer… vivaient dans le working tree de `chore/claude-setup` depuis 4 sessions, à un `git clean` de la perte. La CI ne tournait jamais dessus. → commité + poussé sur `origin`.
+- 🟠 **Aucun garde-fou dur** : `settings.json` autorisait `git *` (push main, reset --hard, --no-verify). → nouveau hook `pre-bash-guard.ps1` (`PreToolUse`) qui bloque ces commandes (16 cas testés).
+- 🟠 **Couverture 4.08%** → traitée (voir plus bas).
+- 🟡 `Edit|Write` ratait `MultiEdit` ; pas de gate de couverture en CI ; warnings ESLint non bloquants malgré WORKFLOW §5 ; `dev` absent d'origin.
+
+**Fichiers créés/modifiés :**
+- `.claude/hooks/post-edit.ps1` — JSON `additionalContext` + `--max-warnings 0`, capture stdout seul (évite le wrap `NativeCommandError` de `2>&1`)
+- `.claude/hooks/pre-bash-guard.ps1` — **nouveau** garde-fou
+- `.claude/hooks/session-end.ps1` — commentaire honnête (human/debug-facing, pas de stop-loop)
+- `.claude/settings.json` — `PreToolUse(Bash)`, matcher `Edit|Write|MultiEdit`
+- `vitest.config.ts` — `coverage.include` = allowlist logique (14 fichiers) + `thresholds: 100`
+- `package.json` — `lint` applique `--max-warnings 0` ; `.github/workflows/ci.yml` — step `pnpm test:coverage` (gate)
+- **12 nouveaux fichiers de test** (147 tests) : CollectionsManager, SessionManager, store/index (migrations), shortcutActions, lib/{url,strings,cn,notify,a11y,missions}, store/{appStore,missionsStore} ; +2 cas dans heuristics.test.ts
+
+**Décisions :**
+- Périmètre « 100% » = **logique métier seule** (allowlist). Les classes Electron-window, bindings natifs (koffi/uiohook), wiring IPC et composants React sont exclus : les couvrir = tester les mocks, pas le comportement. Le seuil 100% n'a de sens que parce qu'il ne couvre que ce qui casse silencieusement.
+- Garde-fou en `exit 2` + stderr (annule l'appel, renvoie la raison à Claude) plutôt qu'en JSON `deny` — plus simple et robuste.
+
+**Score méthode :**
+| Axe | Avant | Après |
+|---|---|---|
+| Boucle de feedback (hooks) | 2/10 (décorative) | 9/10 (fonctionnelle) |
+| Garde-fous (règles dures) | 0/10 | 8/10 |
+| Setup sous VCS | 2/10 | 9/10 |
+| Couverture tests | 1/10 (4%) | 9/10 (100% logique + gate) |
+
+**Questions ouvertes :**
+- `dev` n'existe pas sur `origin` → la PR `chore/claude-setup → dev` est en attente d'une décision humaine (créer `dev` sur origin, ou PR vers `main`).
+
+**Prochaine étape :**
+- Trancher la topologie `dev`/PR. Puis `[SEC] Valider inputs IPC`, puis étendre la couverture aux composants React à logique (testing-library + happy-dom) si souhaité.
+
+---
+
 ## [2026-05-29] Audit corps de métiers — guides DESIGN/PERF/TESTING + /metrics + security CI
 
 **Contexte :** Audit chirurgical pour s'assurer que tous les corps de métiers principaux sont représentés dans le système d'autonomie. Trois manques identifiés après lecture réelle du code : UX/UI design (système existait mais non documenté), QA/Testing (1 seul fichier de test), Performance Engineering (instrumentée mais non exposée).

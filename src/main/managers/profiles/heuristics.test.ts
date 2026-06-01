@@ -66,6 +66,11 @@ describe('isLikelyLauncher', () => {
   it('detects crash handler', () => {
     expect(isLikelyLauncher('CrashHandler.exe')).toBe(true)
   })
+  it('treats a user exception as not-a-launcher', () => {
+    expect(isLikelyLauncher('GameLauncher.exe', ['GameLauncher'])).toBe(false)
+    // exception matching is case-insensitive and .exe-insensitive
+    expect(isLikelyLauncher('GameLauncher.exe', ['gamelauncher.exe'])).toBe(false)
+  })
 })
 
 describe('isLikelySystemDisplayName', () => {

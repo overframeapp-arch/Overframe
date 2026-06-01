@@ -20,7 +20,7 @@
     "typecheck:node": "node node_modules/typescript/bin/tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "node node_modules/typescript/bin/tsc --noEmit -p tsconfig.web.json",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
-    "lint": "node node_modules/eslint/bin/eslint.js src --ext .ts,.tsx",
+    "lint": "node node_modules/eslint/bin/eslint.js src --ext .ts,.tsx --max-warnings 0",
     "check": "pnpm typecheck && pnpm lint",
     "test": "cross-env VITE_CJS_IGNORE_WARNING=1 vitest run",
     "test:watch": "vitest",
