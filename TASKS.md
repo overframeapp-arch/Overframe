@@ -11,6 +11,7 @@
 **Version en cours :** v0.2.0 **PUBLIÉE** (2026-07-19) → cap sur v1.0
 **Branche active :** `dev`
 **Dernière session :** 2026-07-19 — **Release v0.2.0 publiée** (53 commits depuis v0.1.0) : merge dev→main (PR #60), tag, workflow Release vert, notes de release soignées (CHANGELOG.md). Avant le tag : signalisation d'update ajoutée (updater branché au boot + notification Windows), validation IPC complète (PR #57, revue security-reviewer GO), CI/Release épinglées windows-2022, vitest 3.2.7. Les utilisateurs v0.1.0 recevront la mise à jour automatiquement à leur prochain redémarrage.
+**Suite (même session) :** Chantier Microsoft Store lancé — compte Partner Center créé, identité produit réservée, `MakerAppX` configuré et **build MSIX réel vérifié** (`overframe.appx`, 179 Mo, signé par un certificat de dev auto-généré). Reste : questionnaire IARC, icônes Store personnalisées (placeholders par défaut pour l'instant), captures d'écran, puis soumission.
 
 Le cœur du produit est fonctionnel : overlay, tabs, profils, collections, sessions, raccourcis globaux, tray, auto-update, onboarding. L'objectif immédiat est de solidifier pour la release publique v1.0.
 

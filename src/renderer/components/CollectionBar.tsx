@@ -17,11 +17,7 @@ function BarLinkButton({ link, onClick }: { link: Link; onClick?: () => void }):
       title={link.url}
       className="flex items-center gap-1.5 h-6 px-2.5 rounded text-[12px] text-muted-foreground hover:text-foreground hover:bg-background/70 transition-colors shrink-0 max-w-[160px]"
     >
-      {link.favicon ? (
-        <img src={link.favicon} alt="" className="h-3.5 w-3.5 shrink-0" />
-      ) : (
-        <Favicon url={link.url} favicon={link.favicon} />
-      )}
+      <Favicon url={link.url} favicon={link.favicon} className="h-3.5 w-3.5" />
       <span className="truncate">{link.title || link.url}</span>
     </button>
   )
