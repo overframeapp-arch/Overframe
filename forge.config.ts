@@ -1,6 +1,6 @@
 import { MakerSquirrel } from '@electron-forge/maker-squirrel'
 import { MakerZIP } from '@electron-forge/maker-zip'
-import { MakerAppX } from '@electron-forge/maker-appx'
+import { MakerAppX, type MakerAppXConfig } from '@electron-forge/maker-appx'
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives'
 
 const config = {
@@ -66,13 +66,21 @@ const config = {
     // Microsoft Store submission (MSIX route — the Store signs the package
     // during ingestion, so no code-signing certificate is needed on our side).
     // Identity values reserved in Partner Center (see docs/store/listing.md).
+    //
+    // publisherDisplayName is missing from @electron-forge/maker-appx's own
+    // MakerAppXConfig type, but MakerAppX.js spreads the whole config object
+    // into electron-windows-store's `program`, which DOES read it (defaulting
+    // to the literal string "Reserved" otherwise — that mismatch with the
+    // Partner Center publisher name fails package validation). The intersection
+    // type below passes it through without resorting to `any`.
     new MakerAppX({
       packageName: 'Overframe.Overframe',
       publisher: 'CN=A805C199-2F71-4C15-8CEE-70CC53BA0A3B',
       packageDisplayName: 'Overframe',
       packageDescription: 'A lightweight web overlay browser for gamers.',
       packageExecutable: 'app\\overframe.exe',
-    }),
+      publisherDisplayName: 'Overframe',
+    } as MakerAppXConfig & { publisherDisplayName: string }),
   ],
   plugins: [new AutoUnpackNativesPlugin({})],
 }

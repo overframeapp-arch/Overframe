@@ -66,11 +66,22 @@ To produce before submission (larger window than the dev captures):
 ## 4. Building the package — done
 
 `forge.config.ts` now has a `MakerAppX` entry wired with the real identity
-values. Verified 2026-07-19: `pnpm exec electron-forge make --targets=@electron-forge/maker-appx`
-produces `dist/make/appx/x64/overframe.appx` (~179 MB), self-signed by a dev
+values. Verified 2026-07-19: the build produces
+`dist/make/appx/x64/Overframe.Overframe.appx` (~179 MB), self-signed by a dev
 cert electron-forge generates automatically (`dist/make/appx/x64/default.*`) —
 that cert is only for local install testing; the Store re-signs the package
 during ingestion, so no purchased code-signing certificate is needed.
+
+**Always build with the plain `pnpm make`** (or `electron-forge make` with no
+`--targets` flag). `--targets=@electron-forge/maker-appx` looked like a
+convenient way to build just the appx target, but it reconstructs the maker
+with an **empty config**, silently discarding every value set in
+`forge.config.ts` (packageName, publisher, publisherDisplayName, all of it) —
+confirmed by instrumenting `MakerAppX.js` locally (`this.config` was `{}`
+under `--targets`, and the full object under plain `make`). The symptom in
+Partner Center: "PublisherDisplayName ... is Reserved, qui ne correspond pas
+à votre nom complet d'éditeur" — that's this bug, not a Partner Center issue.
+Building all three targets (Squirrel/ZIP/AppX) together is slower but correct.
 
 No custom `assets` path is set, so the package ships electron-forge's default
 placeholder tile icons (Square44x44Logo, Square150x150Logo, etc.). Cosmetic
@@ -78,10 +89,14 @@ only — replace with real Overframe-branded tiles before final submission by
 adding an `assets: 'public/store-assets'` folder with the sized PNGs Microsoft
 documents, then re-run `pnpm make`.
 
-To reproduce: `pnpm build && pnpm build:addon && pnpm exec electron-forge make --targets=@electron-forge/maker-appx`
-(or the plain `pnpm make` runs it alongside Squirrel/ZIP). Upload the produced
-`.appx` in the Partner Center submission flow. Certification takes a few
-business days the first time.
+To reproduce: `pnpm make` (builds renderer/main/preload, the native addon, then
+all three makers). Upload the produced `.appx` in the Partner Center
+submission flow. Certification takes a few business days the first time.
+
+**Expected warning, not an error**: Partner Center flags `runFullTrust` as a
+"restricted capability requiring approval". This is normal and unavoidable for
+any packaged Win32/Desktop Bridge app (Electron apps always need it — VS Code,
+Discord, Steam etc. all declare it too); it does not block submission.
 
 ## 5. After first publication
 
