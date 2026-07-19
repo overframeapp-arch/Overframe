@@ -1,6 +1,7 @@
 import psList from 'ps-list'
 import { app } from 'electron'
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { store } from '../store'
 import type { Profile, NewProfile } from '@shared/types'
 import {
@@ -10,15 +11,15 @@ import {
   PROCESS_POLL_IDLE_INTERVAL_MS,
   PROCESS_POLL_INTERVAL_MS,
 } from '@shared/types'
-import { DEFAULT_NON_GAME_DIRS, DEFAULT_GAME_PATH_HINTS, DEFAULT_BLOCKED_PROCESSES } from '@shared/gameDefaults'
-import { getExeIcon } from '../utils/getExeIcon'
+import { DEFAULT_NON_GAME_DIRS, DEFAULT_GAME_PATH_HINTS, DEFAULT_BLOCKED_PROCESSES, LAUNCHER_NAME_PATTERNS } from '@shared/gameDefaults'
 import { getVisibleGames } from '../utils/getVisibleGames'
+import { getCachedWindowIcon } from '../utils/getWindowIcon'
 import {
   isLikelySystemDisplayName,
   isLikelyGamePath,
   isLikelyLauncher,
   normalizeProcessName,
-  PLATFORM_SUFFIX_RE,
+  cleanGameName,
 } from './profiles/heuristics'
 import {
   AUTO_CREATED_KEYS_CAP,
@@ -128,6 +129,64 @@ export class ProfileManager {
       ...(input.gameDisplayName ? { gameDisplayName: input.gameDisplayName } : {}),
     }
     store.set('profiles', [...this.getAll(), profile])
+    return profile
+  }
+
+  /**
+   * Creates a profile straight from a detected game — the "Create profile" action
+   * on an unrecognised-game notification. Mirrors auto-creation exactly: derives a
+   * clean name + icon, creates, switches to it, and fires the same notification.
+   * No form, no extra validation.
+   */
+  async createDetectedProfile(
+    input: { processName: string; exePath: string; displayName?: string },
+  ): Promise<Profile | null> {
+    const key = normalizeProcessName(input.processName)
+    if (!key) return null
+
+    const allProfiles = this.getAll()
+    const name = this.deriveDisplayName(
+      {
+        processName: input.processName,
+        exePath: input.exePath,
+        displayName: input.displayName ?? '',
+        windowTitle: '',
+        iconDataUrl: '',
+        isFullscreen: false,
+        windowCX: 0,
+        windowCY: 0,
+      },
+      allProfiles,
+      key,
+    )
+    // Window icon (cached while the game is running) first, exe icon as fallback.
+    const iconUrl = getCachedWindowIcon(input.exePath) || (await this.fetchExeIcon(input.exePath))
+
+    let profile: Profile
+    try {
+      profile = this.create({
+        name,
+        processNames: [key],
+        exePaths: [input.exePath],
+        priority: allProfiles.length,
+        ...(input.displayName ? { gameDisplayName: input.displayName } : {}),
+        ...(iconUrl ? { iconUrl } : {}),
+      })
+    } catch (err) {
+      console.error('[overframe:profiles] createDetectedProfile failed for', key, err)
+      return null
+    }
+
+    // Switch + notify, exactly like auto-creation.
+    const fromProfileId = this.getActive().id
+    const cached = this.visibleGamesCache.get(key)?.[0]
+    const screenPoint =
+      cached && (cached.cx !== 0 || cached.cy !== 0) ? { x: cached.cx, y: cached.cy } : undefined
+    this.manualOverride = false
+    this.activeGameSessionId = profile.id
+    this.setActive(profile.id)
+    for (const cb of this.autoDetectedListeners) cb(profile, true, fromProfileId, screenPoint)
+
     return profile
   }
 
@@ -283,6 +342,7 @@ export class ProfileManager {
       void this.pollOnce()
     }, this.currentPollIntervalMs)
     void this.pollOnce()
+    void this.backfillMissingIcons()
   }
 
   stopPolling(): void {
@@ -426,18 +486,8 @@ export class ProfileManager {
           }
         }
 
-        if (!next.iconUrl && next.processNames.length > 0) {
-          const matchedName = next.processNames.find((pn) => names.has(normalizeProcessName(pn)))
-          if (matchedName) {
-            void getExeIcon(matchedName)
-              .then((dataUrl) => {
-                if (dataUrl) this.update(next.id, { iconUrl: dataUrl })
-              })
-              .catch(() => {
-                /* icon fetch is best-effort */
-              })
-          }
-        }
+        // Backfill a missing icon from the exe paths we know (stored + live).
+        if (!next.iconUrl) void this.backfillIcon(next)
       } else {
         // No game detected — clear the session so the next game starts fresh.
         this.activeGameSessionId = null
@@ -491,8 +541,9 @@ export class ProfileManager {
     const userBlocked = new Set((userSettings.blockedProcesses ?? [...DEFAULT_BLOCKED_PROCESSES]).map((s) => s.toLowerCase().replace(/\.exe$/i, '')))
     const nonGameDirs = userSettings.nonGameDirs ?? [...DEFAULT_NON_GAME_DIRS]
     const gamePathHints = userSettings.gamePathHints ?? [...DEFAULT_GAME_PATH_HINTS]
+    const launcherPatterns = userSettings.launcherPatterns ?? [...LAUNCHER_NAME_PATTERNS]
     const launcherExceptions = userSettings.launcherExceptions ?? []
-    const pathFilteredCandidates: Array<{ processName: string; displayName: string; exePath: string }> = []
+    const pathFilteredCandidates: Array<{ processName: string; displayName: string; exePath: string; iconDataUrl: string }> = []
 
     for (const game of games) {
       const key = game.processName.toLowerCase()
@@ -507,7 +558,7 @@ export class ProfileManager {
       ) {
         continue
       }
-      if (isLikelyLauncher(key, launcherExceptions)) continue
+      if (isLikelyLauncher(key, launcherExceptions, launcherPatterns)) continue
 
       if (existingNames.has(key)) {
         const pathAlreadyCovered = allProfiles.some(
@@ -527,6 +578,7 @@ export class ProfileManager {
             processName: key,
             displayName: game.displayName || key,
             exePath: game.exePath,
+            iconDataUrl: game.iconDataUrl,
           })
           continue
         }
@@ -536,7 +588,9 @@ export class ProfileManager {
       if (userSettings.autoCreateProfiles === false) continue
 
       const displayName = this.deriveDisplayName(game, allProfiles, key)
-      const iconUrl = await this.fetchExeIcon(game.exePath)
+      // Prefer the window's taskbar icon (universal — covers UWP/Xbox); fall
+      // back to the exe's embedded icon.
+      const iconUrl = game.iconDataUrl || (await this.fetchExeIcon(game.exePath))
 
       let profile: Profile
       try {
@@ -602,17 +656,21 @@ export class ProfileManager {
     allProfiles: Profile[],
     key: string,
   ): string {
-    const rawFriendlyName = game.displayName ? game.displayName.replace(PLATFORM_SUFFIX_RE, '').trim() : ''
-    const cleanWindowTitle = game.windowTitle ? game.windowTitle.replace(PLATFORM_SUFFIX_RE, '').trim() : ''
+    // Priority: PE ProductName (most reliable) → window title → prettified exe
+    // name. Each source is run through cleanGameName to strip build/version noise.
+    const rawFriendlyName = cleanGameName(game.displayName)
+    const cleanWindowTitle = cleanGameName(game.windowTitle)
     const baseName =
       rawFriendlyName ||
       cleanWindowTitle ||
-      game.processName
-        .replace(/\.exe$/i, '')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-        .replace(/[_-]+/g, ' ')
-        .trim()
+      cleanGameName(
+        game.processName
+          .replace(/\.exe$/i, '')
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+          .replace(/[_-]+/g, ' ')
+          .trim(),
+      )
 
     /**
      * Two distinct games can share an identical PE friendly name (PoE1/PoE2 both
@@ -628,6 +686,53 @@ export class ProfileManager {
     const exeDir = game.exePath.replace(/[/\\][^/\\]+$/, '')
     const dirName = exeDir.replace(/.*[/\\]/, '').trim()
     return dirName && dirName.toLowerCase() !== key ? dirName : `${baseName} (2)`
+  }
+
+  /**
+   * Best-effort icon backfill for a profile that has none. Reads the embedded
+   * icon (app.getFileIcon) from the exe paths we already know — the stored
+   * `exePaths` (works even when the game is closed) plus any path currently
+   * detected for one of its process names. No PowerShell, no running-process
+   * requirement — the old getExeIcon path needed both, which is why most
+   * icon-less profiles never recovered.
+   */
+  private async backfillIcon(profile: Profile): Promise<void> {
+    if (profile.iconUrl || profile.id === DEFAULT_PROFILE_ID) return
+    const candidates = new Set<string>(profile.exePaths ?? [])
+    for (const pn of profile.processNames) {
+      for (const entry of this.visibleGamesCache.get(normalizeProcessName(pn)) ?? []) {
+        candidates.add(entry.exePath)
+      }
+    }
+    for (const exePath of candidates) {
+      // Window icon first (universal — set when the game was last seen running),
+      // then the exe's embedded icon.
+      const windowIcon = getCachedWindowIcon(exePath)
+      if (windowIcon) {
+        this.update(profile.id, { iconUrl: windowIcon })
+        return
+      }
+      if (!existsSync(exePath)) continue // skip uninstalled games — avoids a needless timeout
+      const iconUrl = await this.fetchExeIcon(exePath)
+      if (iconUrl) {
+        this.update(profile.id, { iconUrl })
+        return
+      }
+    }
+  }
+
+  /**
+   * One-shot scan (called once at startup): fills in icons for any profile
+   * missing one, using its stored exe paths. Sequential to avoid a disk I/O
+   * storm on launch. Recovers profiles whose icon fetch failed at creation
+   * (e.g. the 3s timeout raced a heavy game launch) without needing the game
+   * to be re-running.
+   */
+  async backfillMissingIcons(): Promise<void> {
+    for (const profile of this.getAll()) {
+      if (profile.iconUrl || !profile.exePaths?.length) continue
+      await this.backfillIcon(profile)
+    }
   }
 
   private async fetchExeIcon(exePath: string): Promise<string | null> {

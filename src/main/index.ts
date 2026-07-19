@@ -14,17 +14,29 @@ import { PopupWindow } from './windows/PopupWindow'
 import { TrayManager } from './windows/TrayManager'
 import { ShortcutManager } from './managers/ShortcutManager'
 import { TabManager } from './managers/TabManager'
+import { WebView2View } from './managers/tabs/WebView2View'
 import { ProfileManager } from './managers/ProfileManager'
 import { CollectionsManager } from './managers/CollectionsManager'
 import { SessionManager } from './managers/SessionManager'
 import { startGlobalHooks, stopGlobalHooks } from './managers/uiohook'
 import { store, migrateStore } from './store'
-import { registerIpcHandlers } from './ipc/handlers'
+import { registerIpcHandlers, ensureUpdater } from './ipc/handlers'
 import { installChromeCsp } from './lifecycle/csp'
 import { buildShortcutActions } from './lifecycle/shortcutActions'
 import { IPC } from '@shared/ipc'
-import { DEFAULT_SHORTCUTS, DEFAULT_PROFILE_ID, type Shortcuts } from '@shared/types'
+import { DEFAULT_SHORTCUTS, DEFAULT_PROFILE_ID, DEFAULT_PROTECTED_DOMAINS, type Shortcuts } from '@shared/types'
 import { logCrash } from './utils/crashLogger'
+import { startDevServer } from './utils/devServer'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+
+/**
+ * Bump when public/extensions/ublock's default filter-list selection changes
+ * (see download-ublock.mjs) — existing profiles keep whatever was selected on
+ * their first run, so this triggers a one-time uninstall+reinstall to pick up
+ * the new defaults. See the adBlockListGeneration migration in app.whenReady().
+ */
+const ADBLOCK_LIST_GENERATION = 1
 
 /** Single-instance lock — a second launch focuses the existing instance. */
 const gotLock = isSquirrelEvent ? true : app.requestSingleInstanceLock()
@@ -70,15 +82,50 @@ app.setAppUserModelId('app.overframe')
 // Auto-update from GitHub releases — only runs in packaged builds.
 if (app.isPackaged) {
   updateElectronApp({ updateInterval: '1 hour', notifyUser: false })
+  // Attach the UI status listeners + downloaded-notification right away, so the
+  // silent hourly cycle above is actually visible to the user (home footer state
+  // and a one-shot Windows notification). Before this, the UI only heard about
+  // updates after a manual "Check for updates" click.
+  ensureUpdater()
 }
 
-// Force dark mode for all browser tab content.
-// WebContentsForceDark uses Chromium's auto-dark algorithm (already-dark pages are skipped).
-// nativeTheme ensures prefers-color-scheme: dark for sites with native dark mode support.
-app.commandLine.appendSwitch('enable-features', 'WebContentsForceDark')
-
 app.whenReady().then(() => {
-  nativeTheme.themeSource = 'dark'
+  const initialSettings = store.get('settings')
+  const initialDark = initialSettings.applyDarkMode ?? true
+  nativeTheme.themeSource = initialDark ? 'dark' : 'light'
+  // Store the preference so newly created WebView2 tabs inherit the correct color scheme.
+  // The static call has no effect at boot (no tabs exist yet); createTab picks up g_colorScheme.
+  WebView2View.setColorScheme(initialDark ? 2 : 1)
+
+  // Sync uBlock Origin state with the setting on every startup.
+  // addExtension() is idempotent: it installs if not present and sets the enabled
+  // state. Called unconditionally so a disabled-then-reenabled extension is
+  // properly synced without requiring manual profile cleanup.
+  // The C++ layer defers AddBrowserExtension until the first CreateTab call, and
+  // the returned promise resolves once that install genuinely completes — not
+  // awaited here since nothing yet exists to create that first tab.
+  {
+    const extPath = path.join(app.getAppPath(), 'public', 'extensions', 'ublock')
+    if (existsSync(extPath)) {
+      const adBlockEnabled = initialSettings.adBlockEnabled ?? false
+      const needsListReset = store.get('adBlockListGeneration', 0) < ADBLOCK_LIST_GENERATION
+      void WebView2View.addExtension(extPath, adBlockEnabled)
+        .then(async () => {
+          if (!needsListReset) return
+          // uBlock only picks its default filter-list selection on first run, and this
+          // profile already has one persisted from before — uninstall (wiping storage)
+          // and reinstall once so it re-picks the current defaults (see
+          // download-ublock.mjs). One-time only, gated by adBlockListGeneration.
+          await WebView2View.removeExtension()
+          await WebView2View.addExtension(extPath, adBlockEnabled)
+          store.set('adBlockListGeneration', ADBLOCK_LIST_GENERATION)
+        })
+        .catch((e: unknown) => {
+          console.error('[AdBlock] startup addExtension failed:', e)
+        })
+    }
+  }
+
   // Enable standard edit shortcuts (Ctrl+Z/Y/X/C/V/A) in the BrowserWindow renderer.
   Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'editMenu' }]))
 
@@ -98,6 +145,7 @@ app.whenReady().then(() => {
   overlay.setOpacity(active.opacity)
   popup = new PopupWindow(overlay.win)
   tabs = new TabManager(overlay)
+  tabs.setDarkMode(initialDark)
   sessionManager = new SessionManager(tabs)
 
   store.set('sessionDirty', true)
@@ -130,6 +178,7 @@ app.whenReady().then(() => {
   tray.init()
 
   registerIpcHandlers({ overlay, popup, tabs, profiles, collections, shortcuts, setStartupWithWindows })
+  startDevServer({ overlay, tabs, profiles })
 
   // ── Tab events ─────────────────────────────────────────────────────────────
 
@@ -137,22 +186,36 @@ app.whenReady().then(() => {
   const debouncedSave = (): void => {
     if (saveDebounce) clearTimeout(saveDebounce)
     saveDebounce = setTimeout(() => {
+      saveDebounce = null
       if (profiles && sessionManager) sessionManager.save(profiles.getActive().id)
-    }, 2_000)
+    }, 300)
   }
 
-  tabs.on((event) => {
+  // Stable local reference: `tabs` (the outer `let`) is non-null here, but a mutable
+  // module-level binding can't be narrowed inside a closure that runs later.
+  const tabManager = tabs
+  tabManager.on((event) => {
     if (!overlay) return
     const wc = overlay.win.webContents
     if (event.type === 'updated') wc.send(IPC.EventTabUpdated, event.tab)
     if (event.type === 'removed') { wc.send(IPC.EventTabRemoved, event.id); debouncedSave() }
-    if (event.type === 'activeChanged') { wc.send(IPC.EventActiveTabChanged, event.id); debouncedSave() }
+    if (event.type === 'activeChanged') { wc.send(IPC.EventActiveTabChanged, event.id) }
     if (event.type === 'download') wc.send(IPC.EventDownload, event.event)
+    // A tab Show()/navigation re-raises the WebView2 to HWND_TOP; keep the IG
+    // promo (an overlay child) above it, and re-measure the scrollbar so its
+    // right gap stays correct after navigation.
+    if ((event.type === 'activeChanged' || event.type === 'updated')
+        && (popup?.isIGPromoVisible() || popup?.isAchievementVisible())) {
+      void tabManager.measureActiveScrollbarWidth().then((w) => {
+        popup?.raiseIGPromo(w)
+        popup?.raiseAchievement(w)
+      })
+    }
   })
 
   // ── Profile events ─────────────────────────────────────────────────────────
 
-  let pendingSessionRestore: { profileId: string; fallbackUrl: string } | null = null
+  let pendingSessionRestore: { profileId: string } | null = null
   /**
    * True when the overlay was automatically hidden by game detection
    * (i.e. the user did not explicitly hide it). Used to restore the overlay
@@ -178,10 +241,12 @@ app.whenReady().then(() => {
     // If hidden (user deliberately hid the overlay), defer until the overlay is
     // opened — avoids background network activity the user never requested
     // (e.g. YouTube autoplay while working without the overlay).
+    const { protectedDomains } = store.get('settings')
+    const protected_ = protectedDomains ?? DEFAULT_PROTECTED_DOMAINS
     if (overlay.getState() !== 'HIDDEN') {
-      sessionManager?.restore(profile.id, profile.homepageUrl)
+      sessionManager?.restore(profile.id, protected_)
     } else {
-      pendingSessionRestore = { profileId: profile.id, fallbackUrl: profile.homepageUrl }
+      pendingSessionRestore = { profileId: profile.id }
     }
   })
 
@@ -225,6 +290,7 @@ app.whenReady().then(() => {
   })
 
   profiles.onBeforeSwitch((fromId) => {
+    if (saveDebounce) { clearTimeout(saveDebounce); saveDebounce = null }
     sessionManager?.save(fromId)
   })
 
@@ -236,8 +302,11 @@ app.whenReady().then(() => {
     if (state === 'HIDDEN') {
       // Dismiss any floating achievement notification so it never appears above the game.
       popup?.dismissAchievements()
-      const perfMode = store.get('settings').performanceMode ?? false
-      if (perfMode) tabs?.unloadAll()
+      // Pause media before suspending/unloading so pages receive the pause event
+      // while they still have their content (unloadAll navigates to about:blank).
+      tabs?.pauseAllMedia()
+      const { performanceMode, protectedDomains: pd } = store.get('settings')
+      if (performanceMode) tabs?.unloadAll(pd ?? DEFAULT_PROTECTED_DOMAINS)
       else tabs?.suspendAll()
       // Reduce poll frequency only when no game is active.
       if (profiles && profiles.getActive().id === DEFAULT_PROFILE_ID) {
@@ -251,9 +320,14 @@ app.whenReady().then(() => {
       if (pendingSessionRestore) {
         const p = pendingSessionRestore
         pendingSessionRestore = null
-        sessionManager?.restore(p.profileId, p.fallbackUrl)
+        sessionManager?.restore(p.profileId, store.get('settings').protectedDomains ?? DEFAULT_PROTECTED_DOMAINS)
       }
       tabs?.resumeAll()
+      tabs?.resumePausedMedia()
+      // Overlay is visible again → bring back the IG promo if it was only
+      // retracted by the hide (not dismissed by the user). Deferred a tick so it
+      // re-reveals after the overlay's show() window churn has settled.
+      setImmediate(() => popup?.restoreIGPromo())
     }
   })
 
@@ -268,10 +342,7 @@ app.whenReady().then(() => {
     }, 500)
   }
   overlay.win.on('move', persistBounds)
-  overlay.win.on('resize', () => {
-    persistBounds()
-    tabs?.relayoutActive()
-  })
+  overlay.win.on('resize', persistBounds)
 
   // ── Startup ────────────────────────────────────────────────────────────────
 
@@ -282,9 +353,14 @@ app.whenReady().then(() => {
    * Keeps the process idle (zero web traffic) while hidden at startup or during
    * a game session where the user hasn't opened the overlay yet.
    */
+  // Retract the IG promo before the overlay's Alt+B hide churn — but keep it
+  // "wanted" so it re-appears when the overlay is shown again (restored in the
+  // overlay state-change handler below).
+  overlay.onBeforeHide(() => popup?.retractIGPromo())
+
   overlay.onFirstShow(() => {
     const current = profiles!.getActive()
-    sessionManager!.restoreOrCreate(current.id, current.homepageUrl)
+    sessionManager!.restoreOrCreate(current.id)
   })
 
   if (!process.argv.includes('--hidden')) overlay.show()

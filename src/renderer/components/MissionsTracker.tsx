@@ -2,43 +2,34 @@ import { useEffect } from 'react'
 import { useAppStore } from '../store/appStore'
 import { useMissionsStore, STORAGE_KEY } from '../store/missionsStore'
 import { MISSIONS } from '../lib/missions'
+import { isRealWebsite } from '../lib/missionHelpers'
+import { isIGUrl } from '@shared/ig-affiliate'
 import { DEFAULT_PROFILE_ID } from '@shared/types'
 
-// ── URL helpers ───────────────────────────────────────────────────────────────
-/** Returns true for real websites — excludes blank pages, Google homepage and
- *  any google.com domain (search results, images, maps, etc.) */
-function isRealWebsite(url: string): boolean {
-  if (!url || url === 'about:blank') return false
-  try {
-    const { hostname } = new URL(url)
-    const bare = hostname.replace(/^www\./, '')
-    // Block all google.com domains (google.com, maps.google.com, etc.)
-    return bare !== 'google.com' && !bare.endsWith('.google.com')
-  } catch {
-    return false
-  }
-}
+/** The specific channel the user must land on to validate the "join Discord" mission.
+ *  A `discord.com/channels/<guild>/<channel>` URL can only be reached as a *member*
+ *  of that guild — non-members are bounced to an invite or login page. */
+const OVERFRAME_DISCORD_MISSION_URL = 'https://discord.com/channels/1501993110291349584/1501993222908674109'
 
-/** Returns true only when the user has landed on a Discord channel page
- *  (discord.com/channels/…), meaning they actually joined the server.
- *  Invite pages (discord.gg) do NOT count. */
-function isDiscordChannelUrl(url: string): boolean {
+/** True only when the user is on the exact Overframe landing channel. */
+function isOverframeDiscordUrl(url: string): boolean {
   try {
     const { hostname, pathname } = new URL(url)
-    return hostname === 'discord.com' && pathname.startsWith('/channels/')
+    const { hostname: mh, pathname: mp } = new URL(OVERFRAME_DISCORD_MISSION_URL)
+    return hostname === mh && pathname === mp
   } catch { return false }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function MissionsTracker(): null {
-  const { tabs, collections, overlayState, activeProfile } = useAppStore()
+  const { tabs, collections, overlayState, activeProfile, settings } = useAppStore()
   const { complete, pendingUnlocked, shiftPendingUnlocked } = useMissionsStore()
 
   // ── Auto-completion watchers ───────────────────────────────────────────────
 
   useEffect(() => {
-    if (tabs.some((t) => isRealWebsite(t.url))) complete('open-tab')
-  }, [tabs, complete])
+    if (tabs.some((t) => isRealWebsite(t.url, settings?.homepageUrl))) complete('open-tab')
+  }, [tabs, complete, settings?.homepageUrl])
 
   // Only fires when the user explicitly toggles the overlay via keyboard shortcut,
   // not when it is auto-hidden by game detection.
@@ -63,7 +54,11 @@ export function MissionsTracker(): null {
   }, [collections, complete])
 
   useEffect(() => {
-    if (tabs.some((t) => isDiscordChannelUrl(t.url))) complete('join-discord')
+    if (tabs.some((t) => isOverframeDiscordUrl(t.url))) complete('join-discord')
+  }, [tabs, complete])
+
+  useEffect(() => {
+    if (tabs.some((t) => isIGUrl(t.url))) complete('visit-ig')
   }, [tabs, complete])
 
   // ── Sync missions completed by other windows (e.g. the popup) via localStorage ─

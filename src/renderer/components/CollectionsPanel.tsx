@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Check,
   ChevronLeft,
@@ -16,14 +16,16 @@ import { DEFAULT_PROFILE_ID } from '@shared/types'
 import type { Profile } from '@shared/types'
 import { cn } from '../lib/cn'
 import { sanitizeIconUrl } from '../lib/url'
+import { bannerImageStyle } from '../lib/bannerFocusStyle'
 import { useAppStore } from '../store/appStore'
 import { useMissionsStore } from '../store/missionsStore'
 import { useDebounce } from '../hooks/useDebounce'
+import { useShareCollection, useImportCollection } from '../hooks/useCollectionShare'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Tooltip } from './ui/Tooltip'
 import { ProfileIcon } from './ProfileIcon'
-import { Favicon } from './collections/atoms'
+import { Favicon, CopiedTooltip } from './collections/atoms'
 import { ProfileCreateForm, ProfileEditForm } from './collections/ProfileForms'
 import { LinksView } from './collections/LinksView'
 import type { NavLevel } from './collections/types'
@@ -61,16 +63,9 @@ export function CollectionsPanel({
   const [newCollName, setNewCollName] = useState('')
   const [newCollIconUrl, setNewCollIconUrl] = useState('')
   const [showImport, setShowImport] = useState(false)
-  const [importValue, setImportValue] = useState('')
   const [deleteCollConfirmId, setDeleteCollConfirmId] = useState<string | null>(null)
-  const [exportCopiedPos, setExportCopiedPos] = useState<{ id: string; x: number; y: number } | null>(null)
-  const mousePos = useRef({ x: 0, y: 0 })
 
-  useEffect(() => {
-    const handler = (e: MouseEvent): void => { mousePos.current = { x: e.clientX, y: e.clientY } }
-    window.addEventListener('mousemove', handler)
-    return () => window.removeEventListener('mousemove', handler)
-  }, [])
+  const [descDraft, setDescDraft] = useState('')
 
   const [draggedCollId, setDraggedCollId] = useState<string | null>(null)
   const [dragOverCollId, setDragOverCollId] = useState<string | null>(null)
@@ -117,6 +112,13 @@ export function CollectionsPanel({
     setCollections(await window.aether.collections.getAll())
   }, [setCollections])
 
+  // Shared share/import flows (same implementation as ManagePanel).
+  const { copiedPos, shareToClipboard } = useShareCollection()
+  const {
+    importValue, setImportValue, importPreview, importError, importing,
+    importAddRef, previewImport, confirmImport, reset: resetImportState,
+  } = useImportCollection(refresh)
+
   const refreshProfiles = useCallback(async (): Promise<void> => {
     setProfiles(await window.aether.profiles.getAll())
     setActiveProfile(await window.aether.profiles.getCurrent())
@@ -127,6 +129,11 @@ export function CollectionsPanel({
   }, [])
 
   useEffect(() => { void refreshExcluded() }, [refreshExcluded])
+
+  useEffect(() => {
+    const coll = collections.find((c) => c.id === selectedCollectionId)
+    setDescDraft(coll?.description ?? '')
+  }, [selectedCollectionId, collections])
 
   // ── Profile actions ──────────────────────────────────────────────────────
 
@@ -139,8 +146,15 @@ export function CollectionsPanel({
     setSearchQuery('')
   }
 
-  const handleCreateProfile = async (input: { name: string; processNames: string[] }): Promise<void> => {
-    await window.aether.profiles.create({ name: input.name, processNames: input.processNames, priority: profiles.length })
+  const handleCreateProfile = async (input: { name: string; processNames: string[]; iconUrl?: string; exePath?: string; gameDisplayName?: string }): Promise<void> => {
+    await window.aether.profiles.create({
+      name: input.name,
+      processNames: input.processNames,
+      priority: profiles.length,
+      ...(input.iconUrl ? { iconUrl: input.iconUrl } : {}),
+      ...(input.exePath ? { exePaths: [input.exePath] } : {}),
+      ...(input.gameDisplayName ? { gameDisplayName: input.gameDisplayName } : {}),
+    })
     setShowNewProfile(false)
     await refreshProfiles()
   }
@@ -211,26 +225,19 @@ export function CollectionsPanel({
     await refresh()
   }
 
-  const handleExport = async (id: string): Promise<void> => {
-    // Try short code first (requires network + deployed share worker)
-    const code = await window.aether.collections.share(id)
-    const textToCopy = code ?? (await window.aether.collections.export(id))
-    if (!textToCopy) return
-    complete('export-collection')
-    const { x, y } = mousePos.current
-    setExportCopiedPos({ id, x, y })
-    setTimeout(() => setExportCopiedPos(null), 2000)
-    try { await navigator.clipboard.writeText(textToCopy) } catch { /* clipboard may fail if window loses focus */ }
+  const handleExport = (id: string): Promise<void> => shareToClipboard(id)
+
+  const resetImport = (): void => {
+    setShowImport(false)
+    resetImportState()
   }
 
-  const handleImport = async (): Promise<void> => {
-    if (!importValue.trim() || !selectedProfileId) return
-    const profileId = selectedProfileId
-    await window.aether.collections.import(importValue.trim(), profileId)
-    complete('export-collection')
-    setImportValue('')
+  const handlePreviewImport = (): Promise<void> => previewImport()
+
+  const handleConfirmImport = async (): Promise<void> => {
+    if (!selectedProfileId) return
+    await confirmImport(selectedProfileId)
     setShowImport(false)
-    await refresh()
   }
 
   // ── Link actions ─────────────────────────────────────────────────────────
@@ -245,8 +252,13 @@ export function CollectionsPanel({
     await refresh()
   }
 
-  const handleEditLink = async (cid: string, lid: string, title: string, url: string): Promise<void> => {
-    await window.aether.collections.updateLink(cid, lid, { title, url })
+  const handleEditLink = async (cid: string, lid: string, title: string, url: string, note: string): Promise<void> => {
+    await window.aether.collections.updateLink(cid, lid, { title, url, ...(note ? { note } : { note: undefined }) })
+    await refresh()
+  }
+
+  const handleSetDescription = async (cid: string, desc: string): Promise<void> => {
+    await window.aether.collections.setDescription(cid, desc.trim() || null)
     await refresh()
   }
 
@@ -326,23 +338,23 @@ export function CollectionsPanel({
           {level === 'collections' && (
             <>
               <button type="button" onClick={() => setLevel('profiles')} aria-label="Back to profiles"
-                className="text-muted-foreground/60 hover:text-muted-foreground transition-colors truncate shrink-0 max-w-[80px]">Profiles</button>
-              <ChevronRight size={10} className="text-muted-foreground/40 shrink-0" aria-hidden="true" />
-              <span className="font-medium truncate">{selectedProfile?.name ?? '—'}</span>
+                className="text-muted-foreground hover:text-foreground transition-colors truncate shrink-0 max-w-[80px]">Profiles</button>
+              <ChevronRight size={10} className="text-muted-foreground shrink-0" aria-hidden="true" />
+              <span className="font-medium truncate">{selectedProfile?.name ?? ''}</span>
             </>
           )}
           {level === 'links' && (
             <>
               <button type="button" onClick={() => setLevel('profiles')} aria-label="Back to profiles"
-                className="text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors shrink-0">Profiles</button>
-              <ChevronRight size={10} className="text-muted-foreground/30 shrink-0" aria-hidden="true" />
+                className="text-muted-foreground hover:text-foreground transition-colors shrink-0">Profiles</button>
+              <ChevronRight size={10} className="text-muted-foreground shrink-0" aria-hidden="true" />
               <button type="button" onClick={() => { setLevel('collections') }}
                 aria-label={`Back to ${selectedProfile?.name ?? 'profile'} collections`}
-                className="text-muted-foreground/60 hover:text-muted-foreground transition-colors truncate shrink-0 max-w-[70px]">
-                {selectedProfile?.name ?? '—'}
+                className="text-muted-foreground hover:text-foreground transition-colors truncate shrink-0 max-w-[70px]">
+                {selectedProfile?.name ?? ''}
               </button>
-              <ChevronRight size={10} className="text-muted-foreground/40 shrink-0" aria-hidden="true" />
-              <span className="font-medium truncate">{selectedCollection?.name ?? '—'}</span>
+              <ChevronRight size={10} className="text-muted-foreground shrink-0" aria-hidden="true" />
+              <span className="font-medium truncate">{selectedCollection?.name ?? ''}</span>
             </>
           )}
         </nav>
@@ -394,7 +406,7 @@ export function CollectionsPanel({
           )}
           <ul className="flex-1 overflow-y-auto" role="list" aria-label="Profiles">
             {filteredProfiles.length === 0 && (
-              <li className="px-3 py-6 text-center text-[11px] text-muted-foreground/60">No profile matches &laquo;{profileSearch}&raquo;.</li>
+              <li className="px-3 py-6 text-center text-[11px] text-muted-foreground">No profile matches &laquo;{profileSearch}&raquo;.</li>
             )}
             {filteredProfiles.map((p) => {
               const isActive = p.id === activeProfile?.id
@@ -419,7 +431,7 @@ export function CollectionsPanel({
                         <ProfileIcon iconUrl={p.iconUrl} name={p.name} size={20} profileId={p.id} />
                         <div className="flex-1 min-w-0">
                           <div className={cn('text-[12px] truncate', isActive && 'text-primary font-medium')}>{p.name}</div>
-                          <div className="text-[10px] text-muted-foreground/60 truncate">
+                          <div className="text-[11px] text-muted-foreground truncate">
                             {collCount} collection{collCount !== 1 ? 's' : ''}
                           </div>
                         </div>
@@ -443,13 +455,13 @@ export function CollectionsPanel({
                             </Tooltip>
                           )}
                         </div>
-                        <ChevronRight size={12} className="text-muted-foreground/30 shrink-0 -mr-0.5" aria-hidden="true" />
+                        <ChevronRight size={12} className="text-muted-foreground shrink-0 -mr-0.5" aria-hidden="true" />
                       </button>
                       {deleteProfileConfirmId === p.id && (
                         <div className="px-3 py-2 bg-muted/30 border-t border-border/60" role="alert">
                           <p className="text-[11px] text-foreground mb-2">Delete &laquo;{p.name}&raquo;?</p>
                           {p.processNames.length > 0 && (
-                            <p className="text-[10px] text-muted-foreground mb-2">
+                            <p className="text-[11px] text-muted-foreground mb-2">
                               <strong className="text-foreground">Delete</strong> erases everything permanently.
                               &nbsp;<strong className="text-foreground">Exclude</strong> saves a restorable snapshot.
                             </p>
@@ -507,7 +519,7 @@ export function CollectionsPanel({
         <div className="flex flex-col flex-1 min-h-0">
           <ul className="flex-1 overflow-y-auto" role="list" aria-label="Collections">
             {filteredCollections.length === 0 && !showNewColl && (
-              <li className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground/50">
+              <li className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
                 {isSearching
                   ? <p className="text-[11px]">No collections match &laquo;{debouncedQuery}&raquo;.</p>
                   : <><Globe size={20} aria-hidden="true" /><p className="text-[11px]">No collections yet.</p></>
@@ -532,7 +544,7 @@ export function CollectionsPanel({
                       <div className="flex items-center gap-2">
                         {sanitizeIconUrl(editCollIconUrl)
                           ? <img src={sanitizeIconUrl(editCollIconUrl)} alt="" className="h-5 w-5 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                          : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted-foreground/10 flex items-center justify-center"><Globe size={10} className="text-muted-foreground/30" /></div>
+                          : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted/60 flex items-center justify-center"><Globe size={10} className="text-muted-foreground" /></div>
                         }
                         <Input autoFocus aria-label="Collection name" value={editCollName} onChange={(e) => setEditCollName(e.target.value)}
                           placeholder="Collection name…" className="h-7 text-xs flex-1"
@@ -550,16 +562,22 @@ export function CollectionsPanel({
                     </div>
                   ) : (
                     <button type="button"
-                      aria-label={`Open ${c.name} — ${c.links.length} link${c.links.length !== 1 ? 's' : ''}`}
+                      aria-label={`Open ${c.name}, ${c.links.length} link${c.links.length !== 1 ? 's' : ''}`}
                       className={cn('w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 focus-visible:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-ring text-left', isSelected && 'bg-muted/20', draggedCollId === c.id && 'opacity-50')}
                       onClick={() => { setSelectedCollectionId(c.id); setLevel('links') }}>
                       {c.iconUrl
-                        ? <img src={c.iconUrl} alt="" className="h-5 w-5 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                        : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted-foreground/10 flex items-center justify-center"><Globe size={10} className="text-muted-foreground/30" /></div>
+                        ? <span className="h-5 w-5 shrink-0 rounded-sm overflow-hidden">
+                            <img src={c.iconUrl} alt="" className="h-full w-full object-cover" style={bannerImageStyle(c.iconFocus)} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                          </span>
+                        : <div className="h-5 w-5 shrink-0 rounded-sm bg-muted/60 flex items-center justify-center"><Globe size={10} className="text-muted-foreground" /></div>
                       }
                       <div className="flex-1 min-w-0">
                         <span className={cn('text-[12px] truncate block', isSelected && 'text-primary font-medium')}>{c.name}</span>
-                        <div className="text-[10px] text-muted-foreground/60">{c.links.length} link{c.links.length !== 1 ? 's' : ''}</div>
+                        {c.description && <span className="text-[11px] text-muted-foreground truncate block">{c.description}</span>}
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {c.links.length} link{c.links.length !== 1 ? 's' : ''}
+                          {c.author?.handle ? ` · by @${c.author.handle}` : ''}
+                        </div>
                       </div>
                       {isSelected && <Check size={12} className="text-primary shrink-0" aria-hidden="true" />}
                       <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -586,7 +604,7 @@ export function CollectionsPanel({
                           </Tooltip>
                         )}
                       </div>
-                      <ChevronRight size={12} className="text-muted-foreground/30 shrink-0" aria-hidden="true" />
+                      <ChevronRight size={12} className="text-muted-foreground shrink-0" aria-hidden="true" />
                     </button>
                   )}
                   {deleteCollConfirmId === c.id && (
@@ -619,12 +637,57 @@ export function CollectionsPanel({
           )}
 
           {showImport && !showNewColl && (
-            <div className="flex items-center gap-1.5 px-3 py-2 border-t border-border/40 shrink-0" role="form" aria-label="Import collection">
-              <Input autoFocus aria-label="Collection Base64 code" value={importValue} onChange={(e) => setImportValue(e.target.value)}
-                placeholder="Paste code…" className="h-7 text-xs flex-1"
-                onKeyDown={(e) => { if (e.key === 'Enter') void handleImport(); if (e.key === 'Escape') { setShowImport(false); setImportValue('') } }} />
-              <Button size="icon" variant="ghost" aria-label="Import" className="h-7 w-7" onClick={() => void handleImport()}><Check size={11} /></Button>
-              <Button size="icon" variant="ghost" aria-label="Cancel" className="h-7 w-7" onClick={() => { setShowImport(false); setImportValue('') }}><XIcon size={11} /></Button>
+            <div className="flex flex-col gap-2 px-3 py-2 border-t border-border/40 shrink-0" role="form" aria-label="Import collection"
+              onKeyDown={(e) => { if (e.key === 'Escape') resetImport() }}>
+              {!importPreview ? (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <Input autoFocus aria-label="Collection share code" value={importValue}
+                      onChange={(e) => setImportValue(e.target.value)}
+                      placeholder="Paste a share code…" className="h-7 text-xs flex-1"
+                      onKeyDown={(e) => { if (e.key === 'Enter') void handlePreviewImport() }} />
+                    <Button size="icon" variant="ghost" aria-label="Preview" className="h-7 w-7" onClick={() => void handlePreviewImport()}><Search size={11} /></Button>
+                    <Button size="icon" variant="ghost" aria-label="Cancel" className="h-7 w-7" onClick={resetImport}><XIcon size={11} /></Button>
+                  </div>
+                  {importError && <p className="text-[11px] text-destructive" role="alert">Invalid or unreadable code.</p>}
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    {importPreview.iconUrl
+                      ? <img src={importPreview.iconUrl} alt="" className="h-6 w-6 shrink-0 rounded-sm object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                      : <div className="h-6 w-6 shrink-0 rounded-sm bg-muted/60 flex items-center justify-center"><Globe size={11} className="text-muted-foreground" aria-hidden="true" /></div>
+                    }
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] font-medium truncate">{importPreview.name || 'Untitled collection'}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {importPreview.author?.handle ? `by @${importPreview.author.handle} · ` : ''}
+                        {importPreview.links.length} link{importPreview.links.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </div>
+                  {importPreview.description && <p className="text-[11px] text-muted-foreground">{importPreview.description}</p>}
+                  <ul className="max-h-40 overflow-y-auto rounded-md border border-border/50 divide-y divide-border/30" role="list" aria-label="Links in this collection">
+                    {importPreview.links.map((l, i) => (
+                      <li key={`${i}-${l.url}`} className="flex items-start gap-2 px-2 py-1.5">
+                        <Favicon url={l.url} favicon={l.favicon} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] truncate">{l.title || l.url}</div>
+                          {l.note && <div className="text-[10px] text-muted-foreground truncate">{l.note}</div>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-2">
+                    <button type="button" ref={importAddRef} disabled={importing} onClick={() => void handleConfirmImport()}
+                      className="flex-1 h-7 rounded text-[12px] bg-primary/15 text-primary hover:bg-primary/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                      Add to {selectedProfile?.name ?? 'profile'}
+                    </button>
+                    <button type="button" onClick={resetImport}
+                      className="flex-1 h-7 rounded text-[12px] text-muted-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -642,16 +705,29 @@ export function CollectionsPanel({
       )}
 
       {level === 'links' && selectedCollection && !isSearching && (
-        <div className="flex-1 min-h-0">
-          <LinksView
-            collection={selectedCollection}
-            tabs={tabs}
-            onOpen={handleOpen}
-            onAddLink={(link) => void handleAddLink(selectedCollection.id, link)}
-            onEditLink={(lid, title, url) => void handleEditLink(selectedCollection.id, lid, title, url)}
-            onRemoveLink={(lid) => void handleRemoveLink(selectedCollection.id, lid)}
-            onReorderLinks={(ids) => void handleReorderLinks(selectedCollection.id, ids)}
-          />
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="px-3 py-1.5 border-b border-border/30 shrink-0">
+            <textarea
+              aria-label="Collection description"
+              value={descDraft}
+              onChange={(e) => setDescDraft(e.target.value)}
+              onBlur={() => void handleSetDescription(selectedCollection.id, descDraft)}
+              placeholder="Description (optional)…"
+              rows={2}
+              className="w-full rounded border-0 bg-transparent px-0 py-0 text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none resize-none"
+            />
+          </div>
+          <div className="flex-1 min-h-0">
+            <LinksView
+              collection={selectedCollection}
+              tabs={tabs}
+              onOpen={handleOpen}
+              onAddLink={(link) => void handleAddLink(selectedCollection.id, link)}
+              onEditLink={(lid, title, url, note) => void handleEditLink(selectedCollection.id, lid, title, url, note)}
+              onRemoveLink={(lid) => void handleRemoveLink(selectedCollection.id, lid)}
+              onReorderLinks={(ids) => void handleReorderLinks(selectedCollection.id, ids)}
+            />
+          </div>
         </div>
       )}
 
@@ -671,7 +747,7 @@ export function CollectionsPanel({
                       <Favicon url={l.url} favicon={l.favicon} />
                       <span className="truncate">{l.title}</span>
                     </div>
-                    <div className="text-[10px] text-muted-foreground truncate">{l.collectionName}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{l.collectionName}</div>
                   </button>
                   <Tooltip label="Remove link">
                     <Button size="icon" variant="ghost" aria-label={`Remove ${l.title}`}
@@ -687,17 +763,7 @@ export function CollectionsPanel({
         </div>
       )}
 
-      {exportCopiedPos && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{ left: exportCopiedPos.x, top: exportCopiedPos.y - 36 }}
-          className="fixed z-[9999] pointer-events-none -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-background border border-border shadow-lg text-[11px] text-foreground whitespace-nowrap"
-        >
-          <Check size={11} className="text-green-500 shrink-0" aria-hidden="true" />
-          Copied to clipboard
-        </div>
-      )}
+      <CopiedTooltip pos={copiedPos} />
     </div>
   )
 }

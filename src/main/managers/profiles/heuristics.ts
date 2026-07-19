@@ -5,7 +5,7 @@
  * out lets us unit-test them independently of the polling loop.
  */
 
-import { DEFAULT_BLOCKED_PROCESSES, DEFAULT_GAME_PATH_HINTS, DEFAULT_NON_GAME_DIRS } from '@shared/gameDefaults'
+import { DEFAULT_BLOCKED_PROCESSES, DEFAULT_GAME_PATH_HINTS, DEFAULT_NON_GAME_DIRS, LAUNCHER_NAME_PATTERNS } from '@shared/gameDefaults'
 
 /**
  * Combined set of self-protection names + user-editable defaults.
@@ -48,16 +48,45 @@ const SYSTEM_VENDORS = [
   'teamviewer', 'anydesk',
 ]
 
-const LAUNCHER_PATTERNS = [
-  'launcher', 'updater', 'patcher', 'installer', 'uninstaller',
-  'setup', 'helper', 'service', 'daemon', 'agent', 'tray',
-  'crashhandler', 'crashreporter', 'bugsplat', 'sentry',
-  'webhelper', 'cefsubprocess', 'subprocess', 'renderer',
-  'bootstrapper', 'bootstrap',
-]
-
 export const PLATFORM_SUFFIX_RE =
   /[\s_-]+(steam|epic(\s*games)?|gog|origin|uplay|ubisoft\s*connect|xbox|gamepass|game\s*pass|microsoft\s*store|ea\s*app|battle\.?net|launcher)$/i
+
+/**
+ * Strips build/version/architecture noise commonly appended to game window
+ * titles — e.g. "Subnautica 2 - Build 115506" → "Subnautica 2".
+ *
+ * Conservative by design: only removes *recognised* trailing noise tokens
+ * (storefront suffix, "Build NNNN", dotted version, arch/renderer tags). It
+ * never strips a trailing bare number or word that may belong to the real
+ * title — "Half-Life 2", "Cyberpunk 2077", "F1 24", "DOOM (2016)" are kept.
+ * Applied iteratively so combined noise ("Game - Build 12 (64-bit)") is cleared.
+ */
+export function cleanGameName(raw: string): string {
+  if (!raw) return ''
+  let s = raw.trim()
+  let prev = ''
+  while (s !== prev && s.length > 0) {
+    prev = s
+    s = s
+      // Storefront suffix (Steam, Epic, GOG…)
+      .replace(PLATFORM_SUFFIX_RE, '')
+      // "Build 115506", "- Build 115506", "rev 42"
+      .replace(/[\s|–—_-]*\b(?:build|rev(?:ision)?)\s*[#:]?\s*\d[\w.]*$/i, '')
+      // Dotted version: "v1.2.3", "- 1.2", "(1.0.0)" — requires a dot so a bare
+      // sequel number ("Portal 2") is never matched.
+      .replace(/[\s|–—_-]*\(?\bv?\d+\.\d+(?:\.\d+){0,2}\)?$/i, '')
+      // Architecture / renderer tags: "(64-bit)", "[DX12]", "x64", "Vulkan"
+      .replace(
+        /[\s|–—_-]*[([{]?\s*(?:64[\s-]?bit|32[\s-]?bit|x64|x86|dx1[12]|directx\s*1[12]|d3d1[12]|vulkan|opengl)\s*[)\]}]?$/i,
+        '',
+      )
+      // Dangling separators / now-empty brackets left behind
+      .replace(/[\s|–—_-]+$/, '')
+      .replace(/[([{]\s*[)\]}]$/, '')
+      .trim()
+  }
+  return s || raw.trim()
+}
 
 /**
  * True when the exe path lies under a known game install dir, a user-defined
@@ -102,10 +131,11 @@ export function hasGameLikePeMetadata(displayName: string): boolean {
 export function isLikelyLauncher(
   processName: string,
   exceptions: readonly string[] = [],
+  patterns: readonly string[] = LAUNCHER_NAME_PATTERNS,
 ): boolean {
   const n = processName.toLowerCase().replace(/\.exe$/i, '')
   if (exceptions.some((e) => e.toLowerCase().replace(/\.exe$/i, '') === n)) return false
-  return LAUNCHER_PATTERNS.some((p) => n.includes(p))
+  return patterns.some((p) => n.includes(p.toLowerCase()))
 }
 
 export function normalizeProcessName(name: string): string {

@@ -6,9 +6,10 @@ interface TooltipProps {
   label: string
   children: React.ReactNode
   side?: 'top' | 'bottom'
+  wrap?: boolean
 }
 
-export function Tooltip({ label, children, side = 'bottom' }: TooltipProps): JSX.Element {
+export function Tooltip({ label, children, side = 'bottom', wrap = false }: TooltipProps): JSX.Element {
   const triggerRef = React.useRef<HTMLSpanElement>(null)
   const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null)
 
@@ -29,8 +30,9 @@ export function Tooltip({ label, children, side = 'bottom' }: TooltipProps): JSX
         ReactDOM.createPortal(
           <span
             className={cn(
-              'pointer-events-none fixed z-[9999] whitespace-nowrap rounded',
+              'pointer-events-none fixed z-[9999] rounded',
               'bg-background px-2 py-1 text-[11px] text-foreground border border-border shadow',
+              wrap ? 'max-w-[220px] whitespace-pre-wrap' : 'whitespace-nowrap',
             )}
             style={{
               left: pos.x,

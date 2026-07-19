@@ -40,7 +40,7 @@ export function MoveLinkPicker({ collections, onMove, onCancel }: MoveLinkPicker
               className="w-full text-left text-[11px] px-3 py-2 hover:bg-muted/60 transition-colors flex items-center justify-between border-b border-border/30">
               <span className="truncate">{c.name}</span>
               {c.profileId === 'shared' && (
-                <span className="text-[9px] text-primary bg-primary/15 px-1 rounded shrink-0 ml-2">global</span>
+                <span className="text-[11px] text-primary bg-primary/15 px-1 rounded shrink-0 ml-2">global</span>
               )}
             </button>
           </li>

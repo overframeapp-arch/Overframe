@@ -11,9 +11,14 @@ const config = {
     appCopyright: `Copyright © ${new Date().getFullYear()} Overframe`,
     asar: true,
     icon: 'public/icons/icon',
-    extraResource: ['public/icons'],
+    // Ship the compiled WebView2 addon as a plain resource (not inside the asar).
+    // WebView2View.ts resolves it at process.resourcesPath/webview2_addon.node in
+    // packaged builds — this copies it exactly there. The rest of native/ (C++
+    // source + the 60k-line vendored SDK header + import lib) is excluded below.
+    extraResource: ['public/icons', 'native/webview2-addon/build/Release/webview2_addon.node'],
     ignore: [
       /^\/src($|\/)/,
+      /^\/native($|\/)/,
       /^\/scripts($|\/)/,
       /^\/docs($|\/)/,
       /^\/public($|\/)/,

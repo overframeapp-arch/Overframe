@@ -11,6 +11,10 @@ export default defineConfig({
       }
     },
     build: {
+      // @ts-expect-error — electron-vite@5's bundled `vite` build-option types (peer
+      // dependency drift vs. this repo's pinned vite@5.4) don't declare `outDir` here,
+      // even though electron-vite's actual runtime reads and honors it. Build-tool
+      // config only, never bundled into the app — not worth a dependency bump to silence.
       outDir: 'out/main',
       rollupOptions: {
         input: { index: resolve('src/main/index.ts') }
@@ -25,9 +29,12 @@ export default defineConfig({
       }
     },
     build: {
+      // @ts-expect-error — see the `main` build's outDir comment above.
       outDir: 'out/preload',
       rollupOptions: {
-        input: { index: resolve('src/preload/index.ts') }
+        input: {
+          index: resolve('src/preload/index.ts')
+        }
       }
     }
   },
@@ -42,6 +49,7 @@ export default defineConfig({
       }
     },
     build: {
+      // @ts-expect-error — see the `main` build's outDir comment above.
       outDir: 'out/renderer',
       rollupOptions: {
         input: {

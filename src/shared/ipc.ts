@@ -8,6 +8,7 @@ export const IPC = {
   TabsGoBack: 'tabs:goBack',
   TabsGoForward: 'tabs:goForward',
   TabsReload: 'tabs:reload',
+  TabsStop: 'tabs:stop',
   TabsSetActive: 'tabs:setActive',
   TabsDeactivate: 'tabs:deactivate',
   TabsReorder: 'tabs:reorder',
@@ -26,6 +27,11 @@ export const IPC = {
   OverlayIsMaximized: 'overlay:isMaximized',
   OverlayUnmaximize: 'overlay:unmaximize',
   OverlaySetPosition: 'overlay:setPosition',
+  OverlayMoveByDelta: 'overlay:moveByDelta',
+  OverlaySetBounds: 'overlay:setBounds',
+  OverlayResizeStart: 'overlay:resizeStart',
+  OverlayResizeEnd: 'overlay:resizeEnd',
+  OverlaySetWebViewBounds: 'overlay:setWebViewBounds',
   OverlaySetMouseInteractive: 'overlay:setMouseInteractive',
   OverlayRequestClickThrough: 'overlay:requestClickThrough',
   OverlayLeaveClickThrough: 'overlay:leaveClickThrough',
@@ -42,14 +48,25 @@ export const IPC = {
   CollectionsExport: 'collections:export',
   CollectionsShare: 'collections:share',
   CollectionsImport: 'collections:import',
+  CollectionsPreviewImport: 'collections:previewImport',
   CollectionsSetIconUrl: 'collections:setIconUrl',
+  CollectionsSetIconFocus: 'collections:setIconFocus',
+  CollectionsSetDescription: 'collections:setDescription',
+  CollectionsSetAuthor: 'collections:setAuthor',
   CollectionsReorderLinks: 'collections:reorderLinks',
   CollectionsReorder: 'collections:reorder',
+  CollectionsSetBannerUrl: 'collections:setBannerUrl',
+  CollectionsSetBannerFocus: 'collections:setBannerFocus',
+  CollectionsSetSections: 'collections:setSections',
+  CollectionsRenameSection: 'collections:renameSection',
+  CollectionsDeleteSection: 'collections:deleteSection',
+  CollectionsMoveLink: 'collections:moveLink',
 
   // Profiles
   ProfilesGetAll: 'profiles:getAll',
   ProfilesGetCurrent: 'profiles:getCurrent',
   ProfilesCreate: 'profiles:create',
+  ProfilesCreateDetected: 'profiles:createDetected',
   ProfilesRemove: 'profiles:remove',
   ProfilesUpdate: 'profiles:update',
   ProfilesSetActive: 'profiles:setActive',
@@ -73,13 +90,23 @@ export const IPC = {
   SystemLayoutMap: 'system:layoutMap',
   /** Opens a native folder picker; returns the selected path or null. */
   SystemPickFolder: 'system:pickFolder',
+  /** Opens a native file picker filtered to .exe; returns the selected path or null. */
+  SystemPickExecutable: 'system:pickExecutable',
   /** Launches the Squirrel uninstaller and quits the app. */
   SystemUninstall: 'system:uninstall',
   /** Renderer → Main: show an achievement notification popup window. */
   AchievementNotify: 'achievement:notify',
+  /** Renderer → Main: open the IG promo popup window (bottom-right, above WebView2). */
+  IGPromoShow: 'igPromo:show',
+  /** Renderer or promo popup → Main: close the IG promo window. */
+  IGPromoClose: 'igPromo:close',
+  /** Main → Overlay renderer: user explicitly dismissed the IG promo (clicked X). */
+  IGPromoDismissed: 'igPromo:dismissed',
   AppGetVersion: 'app:getVersion',
   /** Renderer → Main: trigger an update check. */
   AppCheckForUpdates: 'app:checkForUpdates',
+  /** Renderer → Main: quit and install the downloaded update. */
+  AppRestartToUpdate: 'app:restartToUpdate',
   /** Main → Renderer: live update-check status. */
   EventUpdateStatus: 'event:update:status',
 
@@ -109,11 +136,20 @@ export const IPC = {
   EventToggleFocusMode: 'event:toggleFocusMode',
   /** Fired by main when the overlay opacity changes via shortcut — lets the renderer sync the slider. */
   EventOpacityChanged: 'event:opacity:changed',
+  /** Fired by main when the overlay window enters/exits its maximized (fullscreen) state. */
+  EventMaximizedChanged: 'event:maximized:changed',
   /** Fired by main when settings are saved from any window — lets all renderers sync their store. */
   EventSettingsChanged: 'event:settings:changed',
+  /** Fired by main when a WebView2 tab receives focus — renderer uses this to deselect the address bar. */
+  EventWebviewFocused: 'event:webview:focused',
+  /** Renderer → Main: reclaim OS keyboard focus from WebView2 back to the Electron renderer. */
+  RendererClaimFocus: 'renderer:claimFocus',
 
   // Popup → Main (close popup and open a side panel)
   OpenPanelFromPopup: 'popup:openPanel',
+  // Popup → Main → Overlay renderer: close popup + navigate to a Home tab
+  NavigateHomeFromPopup: 'popup:navigateHome',
+  EventNavigateHome: 'event:navigateHome',
 
   // Zoom
   TabsSetZoom: 'tabs:setZoom',
@@ -129,6 +165,10 @@ export const IPC = {
   DevStoreReset: 'dev:storeReset',
   /** Writes a synthetic crash entry to crash.log — dev only. */
   DevSimulateCrash: 'dev:simulateCrash',
+  /** Captures the overlay window and saves a PNG to %TEMP%\overframe-dev-screenshot.png. Returns the path. */
+  DevScreenshot: 'dev:screenshot',
+  /** Returns the last N lines of a dev log file (renderer | webview | crash). */
+  DevReadLog: 'dev:readLog',
   /** Opens a system folder in Windows Explorer. */
   SystemOpenFolder: 'system:openFolder',
   /** Wipes all user data (store + localStorage) and relaunches. */

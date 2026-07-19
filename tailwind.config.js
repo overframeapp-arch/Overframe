@@ -17,7 +17,11 @@ export default {
         primary: 'hsl(var(--primary))',
         'primary-foreground': 'hsl(var(--primary-foreground))',
         destructive: 'hsl(var(--destructive))',
-        'destructive-foreground': 'hsl(var(--destructive-foreground))'
+        'destructive-foreground': 'hsl(var(--destructive-foreground))',
+        'ig-orange':       'hsl(var(--ig-orange) / <alpha-value>)',
+        'ig-orange-dark':  'hsl(var(--ig-orange-dark) / <alpha-value>)',
+        'ig-orange-light': 'hsl(var(--ig-orange-light) / <alpha-value>)',
+        'ko-fi-red':       'hsl(var(--ko-fi-red) / <alpha-value>)'
       },
       borderRadius: {
         lg: 'var(--radius)',

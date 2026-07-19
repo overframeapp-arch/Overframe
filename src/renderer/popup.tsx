@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-import type { BookmarkPopupPayload, MemoryPopupPayload, ProfilesPopupPayload, CollectionPickerPayload, CollectionsPopupPayload, LinkOverflowPayload, SettingsPopupPayload, GameNotificationPayload, GameUndetectedPayload, AchievementPayload } from '@shared/types'
+import type { BookmarkPopupPayload, MemoryPopupPayload, ProfilesPopupPayload, CollectionPickerPayload, CollectionsPopupPayload, LinkOverflowPayload, SettingsPopupPayload, GameNotificationPayload, GameUndetectedPayload, AchievementPayload, IGPromoPayload } from '@shared/types'
 import { BookmarkPopup } from './components/BookmarkPopup'
 import { MemoryPopup } from './components/MemoryPopup'
 import { ProfilesPopup } from './components/ProfilesPopup'
@@ -11,6 +11,7 @@ import { GameNotificationPopup } from './components/GameNotificationPopup'
 import { GameUndetectedPopup } from './components/GameUndetectedPopup'
 import { LinkOverflowPopup } from './components/LinkOverflowPopup'
 import { AchievementNotificationPopup } from './components/AchievementNotificationPopup'
+import { IGGamePromo } from './components/IGGamePromo'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { NotificationCenter } from './components/NotificationCenter'
 import './styles.css'
@@ -26,6 +27,7 @@ type PopupState =
   | { type: 'gameUndetected'; data: GameUndetectedPayload }
   | { type: 'linkOverflow'; data: LinkOverflowPayload }
   | { type: 'achievementNotification'; data: AchievementPayload }
+  | { type: 'igPromo'; data: IGPromoPayload }
   | null
 
 function PopupRoot(): JSX.Element {
@@ -46,6 +48,7 @@ function PopupRoot(): JSX.Element {
   if (popup?.type === 'gameUndetected') return <GameUndetectedPopup data={popup.data} />
   if (popup?.type === 'linkOverflow') return <LinkOverflowPopup data={popup.data} />
   if (popup?.type === 'achievementNotification') return <AchievementNotificationPopup data={popup.data} />
+  if (popup?.type === 'igPromo') return <IGGamePromo data={popup.data} />
   return <div className="h-full bg-transparent" />
 }
 

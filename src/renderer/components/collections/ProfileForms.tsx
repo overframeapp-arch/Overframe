@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { Loader2, Search } from 'lucide-react'
 import type { Profile } from '@shared/types'
 import { cn } from '../../lib/cn'
-import { useGameDetect } from '../../hooks/useGameDetect'
+import { useGameDetect, type VisibleGame } from '../../hooks/useGameDetect'
 import { ProfileIcon } from '../ProfileIcon'
 import { InfoTip } from './atoms'
 import { GamePicker, ProcessNamesField } from './GamePicker'
@@ -71,7 +71,7 @@ export function ProfileEditForm({ profile, isDefault, onSave, onCancel }: Profil
 }
 
 interface ProfileCreateFormProps {
-  onSave: (input: { name: string; processNames: string[] }) => Promise<void>
+  onSave: (input: { name: string; processNames: string[]; iconUrl?: string; exePath?: string; gameDisplayName?: string }) => Promise<void>
   onCancel: () => void
   initialName?: string
   initialProcessName?: string
@@ -81,6 +81,12 @@ export function ProfileCreateForm({ onSave, onCancel, initialName, initialProces
   const [name, setName] = useState(initialName ?? '')
   const [processNames, setProcessNames] = useState(initialProcessName ?? '')
   const [saving, setSaving] = useState(false)
+  // Captured from the first game picked via "Detect" — carried through to onSave so the
+  // profile is created with its real icon immediately, matching the auto-detected flow
+  // instead of waiting on the passive icon backfill.
+  const [pickedIcon, setPickedIcon] = useState<string | undefined>(undefined)
+  const [pickedExePath, setPickedExePath] = useState<string | undefined>(undefined)
+  const [pickedGameDisplayName, setPickedGameDisplayName] = useState<string | undefined>(undefined)
   const nameId = useId()
   const processId = useId()
   const { visibleGames, showPicker, detectLoading, detect, pickGame } = useGameDetect()
@@ -90,25 +96,39 @@ export function ProfileCreateForm({ onSave, onCancel, initialName, initialProces
     if (!trimmed || saving) return
     setSaving(true)
     try {
-      await onSave({ name: trimmed, processNames: processNames.split(',').map((s) => s.trim()).filter(Boolean) })
+      await onSave({
+        name: trimmed,
+        processNames: processNames.split(',').map((s) => s.trim()).filter(Boolean),
+        iconUrl: pickedIcon,
+        exePath: pickedExePath,
+        gameDisplayName: pickedGameDisplayName,
+      })
     } finally {
       setSaving(false)
     }
   }
 
-  const handlePickGame = (g: { processName: string; exePath: string; displayName: string }): void => {
+  const handlePickGame = (g: VisibleGame): void => {
     setProcessNames(pickGame(g, processNames))
     if (!name.trim() && g.displayName) setName(g.displayName)
+    if (!pickedIcon && g.iconDataUrl) {
+      setPickedIcon(g.iconDataUrl)
+      setPickedExePath(g.exePath)
+      setPickedGameDisplayName(g.displayName || undefined)
+    }
   }
 
   return (
     <div className="px-3 py-2.5 flex flex-col gap-2.5 border-b border-border/40" role="form" aria-label="Create profile">
-      <div className="flex flex-col gap-1">
-        <label htmlFor={nameId} className="text-[11px] text-muted-foreground">Profile name</label>
-        <input id={nameId} autoFocus value={name} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Escape') onCancel() }}
-          placeholder="e.g. Path of Exile 2"
-          className="h-7 px-2.5 rounded text-[12px] bg-input border border-border focus:outline-none focus:border-primary/60" />
+      <div className="flex items-center gap-2">
+        <ProfileIcon iconUrl={pickedIcon} name={name || 'New profile'} size={24} />
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <label htmlFor={nameId} className="text-[11px] text-muted-foreground">Profile name</label>
+          <input id={nameId} autoFocus value={name} onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') onCancel() }}
+            placeholder="e.g. Path of Exile 2"
+            className="h-7 px-2.5 rounded text-[12px] bg-input border border-border focus:outline-none focus:border-primary/60" />
+        </div>
       </div>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
@@ -117,7 +137,7 @@ export function ProfileCreateForm({ onSave, onCancel, initialName, initialProces
             <InfoTip text="Comma-separated .exe names (e.g. Game.exe). Overframe switches to this profile automatically when one of these processes becomes active." />
           </label>
           <button type="button" aria-label="Detect running games" onClick={() => void detect()} disabled={detectLoading}
-            className="flex items-center gap-1 h-5 px-1.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50">
+            className="flex items-center gap-1 h-5 px-1.5 rounded text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50">
             {detectLoading ? <Loader2 size={10} className="animate-spin" aria-hidden="true" /> : <Search size={10} aria-hidden="true" />}
             Detect
           </button>

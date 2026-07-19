@@ -86,7 +86,7 @@ export function GameNotificationPopup({ data }: Props): JSX.Element {
         <ProfileIcon iconUrl={profile.iconUrl} name={profile.name} size={30} />
 
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-[10px] text-muted-foreground leading-none mb-0.5">
+          <span className="text-[11px] text-muted-foreground leading-none mb-0.5">
             {isNew ? 'New profile created' : 'Profile activated'}
           </span>
           <span className="text-[13px] font-semibold text-foreground truncate leading-tight">
@@ -95,13 +95,13 @@ export function GameNotificationPopup({ data }: Props): JSX.Element {
         </div>
 
         <div className="shrink-0 flex flex-col items-end gap-0.5">
-          <span className="text-[10px] text-muted-foreground/60 leading-none">Open overlay</span>
+          <span className="text-[11px] text-muted-foreground leading-none">Open overlay</span>
           {shortcut ? (
-            <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-muted/60 border border-border/50 text-muted-foreground leading-none">
+            <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-muted/60 border border-border/50 text-muted-foreground leading-none">
               {shortcut}
             </kbd>
           ) : (
-            <span className="text-[10px] text-muted-foreground/40">→</span>
+            <span className="text-[11px] text-muted-foreground">→</span>
           )}
         </div>
       </div>

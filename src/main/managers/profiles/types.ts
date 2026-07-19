@@ -16,7 +16,7 @@ export type ProfileAutoDetectedListener = (
  */
 export type ProfileAutoGameClosedListener = (fromProfileId: string) => void
 export type GameUndetectedListener = (
-  candidates: Array<{ processName: string; displayName: string; exePath: string }>,
+  candidates: Array<{ processName: string; displayName: string; exePath: string; iconDataUrl: string }>,
 ) => void
 
 export const AUTO_DETECT_THROTTLE_MS = 30_000

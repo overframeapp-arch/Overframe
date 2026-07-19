@@ -109,7 +109,7 @@ export function CollectionBar(): JSX.Element | null {
         {selected?.iconUrl && (
           <img src={selected.iconUrl} alt="" aria-hidden="true" className="h-5 w-5 shrink-0 rounded-sm object-contain" />
         )}
-        <span className="max-w-[130px] truncate">{selected?.name ?? '—'}</span>
+        <span className="max-w-[130px] truncate">{selected?.name ?? ''}</span>
       </button>
 
       {/* Separator */}
@@ -163,7 +163,7 @@ function LinksArea({ links, selected: _selected }: { links: Link[]; selected: Co
 
   if (links.length === 0) {
     return (
-      <span className="text-[11px] text-muted-foreground/50 px-2">No links in this collection</span>
+      <span className="text-[11px] text-muted-foreground px-2">No links in this collection</span>
     )
   }
 

@@ -11,7 +11,10 @@ permissions:
 jobs:
   release:
     name: Build & Publish
-    runs-on: windows-latest # Squirrel + native modules require Windows
+    # windows-2022 (not -latest): the -latest image moved to VS2026, which
+    # node-gyp rejects and which contradicts .npmrc msvs_version=2022 — same
+    # pin as ci.yml build-windows. Squirrel + native modules require Windows.
+    runs-on: windows-2022
 
     steps:
       - name: Checkout

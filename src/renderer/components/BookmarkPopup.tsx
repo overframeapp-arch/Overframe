@@ -159,7 +159,7 @@ export function BookmarkPopup({ initialData }: { initialData: BookmarkPopupPaylo
                 >
                   <span className="truncate">{c.name}</span>
                   {c.profileId === 'shared' && (
-                    <span className="text-[9px] text-muted-foreground ml-1">(global)</span>
+                    <span className="text-[11px] text-muted-foreground ml-1">(global)</span>
                   )}
                 </button>
               ))}
@@ -167,7 +167,7 @@ export function BookmarkPopup({ initialData }: { initialData: BookmarkPopupPaylo
           )}
         </div>
       ) : (
-        <p className="text-[10px] text-muted-foreground mb-3 italic">
+        <p className="text-[11px] text-muted-foreground mb-3 italic">
           A default collection will be created.
         </p>
       )}

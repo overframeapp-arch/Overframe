@@ -1,7 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc'
 import type {
+  BannerFocus,
   Collection,
+  CollectionAuthor,
+  CollectionExport,
   NewCollection,
   NewLink,
   NewProfile,
@@ -22,6 +25,7 @@ import type {
   GameUndetectedPayload,
   WindowBounds,
   DownloadEvent,
+  IGPromoPayload,
 } from '@shared/types'
 
 const api = {
@@ -32,6 +36,7 @@ const api = {
     goBack: (id: string) => ipcRenderer.invoke(IPC.TabsGoBack, id),
     goForward: (id: string) => ipcRenderer.invoke(IPC.TabsGoForward, id),
     reload: (id: string) => ipcRenderer.invoke(IPC.TabsReload, id),
+    stop: (id: string) => ipcRenderer.invoke(IPC.TabsStop, id),
     setActive: (id: string) => ipcRenderer.invoke(IPC.TabsSetActive, id),
     deactivate: () => ipcRenderer.invoke(IPC.TabsDeactivate),
     reorder: (ids: string[]) => ipcRenderer.invoke(IPC.TabsReorder, ids),
@@ -54,10 +59,21 @@ const api = {
     leaveClickThrough: () => ipcRenderer.send(IPC.OverlayLeaveClickThrough),
     setPanelWidth: (w: number) => ipcRenderer.send(IPC.OverlaySetPanelWidth, w),
     setChromeHeight: (h: number) => ipcRenderer.send(IPC.OverlaySetChromeHeight, h),
+    // sendSync blocks the renderer until the main process calls ::SetFocus on the
+    // Chromium render widget HWND — this is synchronous so focus is restored before
+    // the browser processes the address bar's focus/input events.
+    claimFocus: (): void => { ipcRenderer.sendSync(IPC.RendererClaimFocus) },
     toggleMaximize: () => ipcRenderer.invoke(IPC.OverlayToggleMaximize),
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke(IPC.OverlayIsMaximized),
     unmaximize: (): Promise<WindowBounds | null> => ipcRenderer.invoke(IPC.OverlayUnmaximize),
     setPosition: (x: number, y: number): void => ipcRenderer.send(IPC.OverlaySetPosition, x, y),
+    moveByDelta: (dx: number, dy: number): void => ipcRenderer.send(IPC.OverlayMoveByDelta, dx, dy),
+    setBounds: (b: { x: number; y: number; width: number; height: number }): void =>
+      ipcRenderer.send(IPC.OverlaySetBounds, b),
+    resizeStart: (): void => ipcRenderer.send(IPC.OverlayResizeStart),
+    resizeEnd: (): void => ipcRenderer.send(IPC.OverlayResizeEnd),
+    setWebViewBounds: (x: number, y: number, w: number, h: number): void =>
+      ipcRenderer.send(IPC.OverlaySetWebViewBounds, x, y, w, h),
   },
   collections: {
     getAll: (): Promise<Collection[]> => ipcRenderer.invoke(IPC.CollectionsGetAll),
@@ -77,17 +93,41 @@ const api = {
     share: (id: string): Promise<string | null> => ipcRenderer.invoke(IPC.CollectionsShare, id),
     import: (base64: string, profileId: string): Promise<Collection | null> =>
       ipcRenderer.invoke(IPC.CollectionsImport, base64, profileId),
+    /** Decode + sanitize a shared payload (raw base64 or 8-char code) for preview, without importing. */
+    previewImport: (input: string): Promise<CollectionExport | null> =>
+      ipcRenderer.invoke(IPC.CollectionsPreviewImport, input),
     setIconUrl: (id: string, iconUrl: string | null): Promise<Collection | null> =>
       ipcRenderer.invoke(IPC.CollectionsSetIconUrl, id, iconUrl),
+    setBannerUrl: (id: string, bannerUrl: string | null): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsSetBannerUrl, id, bannerUrl),
+    setBannerFocus: (id: string, focus: BannerFocus | null): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsSetBannerFocus, id, focus),
+    setIconFocus: (id: string, focus: BannerFocus | null): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsSetIconFocus, id, focus),
+    setDescription: (id: string, description: string | null): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsSetDescription, id, description),
+    setAuthor: (id: string, author: CollectionAuthor | null): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsSetAuthor, id, author),
     reorderLinks: (collectionId: string, linkIds: string[]): Promise<Collection | null> =>
       ipcRenderer.invoke(IPC.CollectionsReorderLinks, collectionId, linkIds),
     reorder: (collectionIds: string[]): Promise<void> =>
       ipcRenderer.invoke(IPC.CollectionsReorder, collectionIds),
+    setSections: (collectionId: string, sections: string[]): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsSetSections, collectionId, sections),
+    renameSection: (collectionId: string, oldName: string, newName: string): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsRenameSection, collectionId, oldName, newName),
+    deleteSection: (collectionId: string, name: string): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsDeleteSection, collectionId, name),
+    moveLink: (collectionId: string, linkId: string, targetSection: string | null, insertBeforeLinkId: string | null): Promise<Collection | null> =>
+      ipcRenderer.invoke(IPC.CollectionsMoveLink, collectionId, linkId, targetSection, insertBeforeLinkId),
   },
   profiles: {
     getAll: (): Promise<Profile[]> => ipcRenderer.invoke(IPC.ProfilesGetAll),
     getCurrent: (): Promise<Profile> => ipcRenderer.invoke(IPC.ProfilesGetCurrent),
     create: (input: NewProfile): Promise<Profile> => ipcRenderer.invoke(IPC.ProfilesCreate, input),
+    /** Create a profile straight from a detected game (no form) — mirrors auto-creation. */
+    createFromCandidate: (input: { processName: string; exePath: string; displayName?: string }): Promise<Profile | null> =>
+      ipcRenderer.invoke(IPC.ProfilesCreateDetected, input),
     remove: (id: string, mode: 'delete' | 'exclude' = 'exclude') => ipcRenderer.invoke(IPC.ProfilesRemove, id, mode),
     update: (id: string, patch: Partial<Profile>) =>
       ipcRenderer.invoke(IPC.ProfilesUpdate, id, patch),
@@ -98,7 +138,7 @@ const api = {
     getCustomGamePaths: (): Promise<string[]> => ipcRenderer.invoke(IPC.ProfilesGetCustomGamePaths),
     addCustomGamePath: (path: string) => ipcRenderer.invoke(IPC.ProfilesAddCustomGamePath, path),
     removeCustomGamePath: (path: string) => ipcRenderer.invoke(IPC.ProfilesRemoveCustomGamePath, path),
-    getVisibleGames: (): Promise<{ processName: string; exePath: string; displayName: string }[]> =>
+    getVisibleGames: (): Promise<{ processName: string; exePath: string; displayName: string; windowTitle: string; iconDataUrl: string; isFullscreen: boolean }[]> =>
       ipcRenderer.invoke(IPC.ProfilesGetVisibleGames),
     forceDetect: (): Promise<void> => ipcRenderer.invoke(IPC.ProfilesForceDetect),
   },
@@ -114,14 +154,25 @@ const api = {
     devStoreReset: (): Promise<void> => ipcRenderer.invoke(IPC.DevStoreReset),
     reportLayoutMap: (map: Record<string, string>) => ipcRenderer.send(IPC.SystemLayoutMap, map),
     pickFolder: (): Promise<string | null> => ipcRenderer.invoke(IPC.SystemPickFolder),
+    pickExecutable: (): Promise<string | null> => ipcRenderer.invoke(IPC.SystemPickExecutable),
     uninstall: (): Promise<void> => ipcRenderer.invoke(IPC.SystemUninstall),
     openFolder: (target: 'userData' | 'app' | 'logs'): Promise<void> => ipcRenderer.invoke(IPC.SystemOpenFolder, target),
     simulateCrash: (): Promise<void> => ipcRenderer.invoke(IPC.DevSimulateCrash),
     resetData: (): Promise<void> => ipcRenderer.invoke(IPC.SystemResetData),
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke(IPC.AppCheckForUpdates),
+    restartToUpdate: (): Promise<void> => ipcRenderer.invoke(IPC.AppRestartToUpdate),
+    /** Dev only — captures the overlay window to %TEMP%\overframe-dev-screenshot.png. Returns the path. */
+    devScreenshot: (): Promise<string | null> => ipcRenderer.invoke(IPC.DevScreenshot),
+    /** Dev only — returns the last N lines of a log file. */
+    devReadLog: (source: 'renderer' | 'webview' | 'crash', lines?: number): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.DevReadLog, source, lines),
   },
   achievement: {
     notify: (title: string): Promise<void> => ipcRenderer.invoke(IPC.AchievementNotify, { title }),
+  },
+  igPromo: {
+    show: (payload: IGPromoPayload): Promise<void> => ipcRenderer.invoke(IPC.IGPromoShow, payload),
+    close: (dismissed = false): void => { ipcRenderer.send(IPC.IGPromoClose, dismissed) },
   },
   popup: {
     open: (type: 'bookmark', data: BookmarkPopupPayload): Promise<void> =>
@@ -144,6 +195,8 @@ const api = {
     closeNotification: (): void => ipcRenderer.send(IPC.PopupCloseNotification),
     openPanel: (panelId: string, collectionId?: string, prefillNewProfile?: { name: string; processName: string }): Promise<void> =>
       ipcRenderer.invoke(IPC.OpenPanelFromPopup, panelId, collectionId, prefillNewProfile),
+    navigateHome: (tab: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.NavigateHomeFromPopup, tab),
     onInit: (cb: (payload:
       | { type: 'bookmark'; data: BookmarkPopupPayload }
       | { type: 'memory'; data: MemoryPopupPayload }
@@ -202,6 +255,11 @@ const api = {
       ipcRenderer.on(IPC.PopupDone, listener)
       return (): void => { ipcRenderer.removeListener(IPC.PopupDone, listener) }
     },
+    igPromoDismissed: (cb: () => void): (() => void) => {
+      const listener = (): void => cb()
+      ipcRenderer.on(IPC.IGPromoDismissed, listener)
+      return (): void => { ipcRenderer.removeListener(IPC.IGPromoDismissed, listener) }
+    },
     memoryUpdated: (cb: (snapshot: MemorySnapshot) => void): (() => void) => {
       const listener = (_e: unknown, s: MemorySnapshot): void => cb(s)
       ipcRenderer.on(IPC.TabsMemoryUpdated, listener)
@@ -216,6 +274,11 @@ const api = {
       const listener = (_e: unknown, v: number): void => cb(v)
       ipcRenderer.on(IPC.EventOpacityChanged, listener)
       return (): void => { ipcRenderer.removeListener(IPC.EventOpacityChanged, listener) }
+    },
+    maximizedChanged: (cb: (isMaximized: boolean) => void): (() => void) => {
+      const listener = (_e: unknown, v: boolean): void => cb(v)
+      ipcRenderer.on(IPC.EventMaximizedChanged, listener)
+      return (): void => { ipcRenderer.removeListener(IPC.EventMaximizedChanged, listener) }
     },
     settingsChanged: (cb: (s: Settings) => void): (() => void) => {
       const listener = (_e: unknown, s: Settings): void => cb(s)
@@ -238,7 +301,17 @@ const api = {
       ipcRenderer.on(IPC.EventUpdateStatus, listener)
       return (): void => { ipcRenderer.removeListener(IPC.EventUpdateStatus, listener) }
     },
-  }
+    webviewFocused: (cb: () => void): (() => void) => {
+      const listener = (): void => cb()
+      ipcRenderer.on(IPC.EventWebviewFocused, listener)
+      return (): void => { ipcRenderer.removeListener(IPC.EventWebviewFocused, listener) }
+    },
+    navigateHome: (cb: (tab: string) => void): (() => void) => {
+      const listener = (_e: unknown, tab: string): void => cb(tab)
+      ipcRenderer.on(IPC.EventNavigateHome, listener)
+      return (): void => { ipcRenderer.removeListener(IPC.EventNavigateHome, listener) }
+    },
+  },
 }
 
 export type AetherAPI = typeof api

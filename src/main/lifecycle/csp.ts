@@ -10,10 +10,10 @@ import { BrowserWindow, session } from 'electron'
  */
 const CHROME_CSP =
   "default-src 'self' 'unsafe-inline' data: blob:; " +
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-  "style-src 'self' 'unsafe-inline'; " +
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.instant-gaming.com; " +
+  "style-src 'self' 'unsafe-inline' https://www.instant-gaming.com; " +
   "img-src 'self' data: blob: https:; " +
-  "font-src 'self' data:; " +
+  "font-src 'self' data: https://www.instant-gaming.com; " +
   "connect-src 'self' http://localhost:* ws://localhost:* https:; " +
   "frame-ancestors 'none'; " +
   "object-src 'none'; " +

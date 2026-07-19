@@ -7,6 +7,7 @@ import {
   normalizeProcessName,
   NON_GAME_BLOCKLIST,
   PLATFORM_SUFFIX_RE,
+  cleanGameName,
 } from './heuristics'
 
 describe('normalizeProcessName', () => {
@@ -66,6 +67,11 @@ describe('isLikelyLauncher', () => {
   it('detects crash handler', () => {
     expect(isLikelyLauncher('CrashHandler.exe')).toBe(true)
   })
+  it('treats a user exception as not-a-launcher', () => {
+    expect(isLikelyLauncher('GameLauncher.exe', ['GameLauncher'])).toBe(false)
+    // exception matching is case-insensitive and .exe-insensitive
+    expect(isLikelyLauncher('GameLauncher.exe', ['gamelauncher.exe'])).toBe(false)
+  })
 })
 
 describe('isLikelySystemDisplayName', () => {
@@ -120,5 +126,47 @@ describe('PLATFORM_SUFFIX_RE', () => {
   })
   it('leaves plain names untouched', () => {
     expect('Path of Exile'.replace(PLATFORM_SUFFIX_RE, '').trim()).toBe('Path of Exile')
+  })
+})
+
+describe('cleanGameName', () => {
+  it('strips a build suffix', () => {
+    expect(cleanGameName('Subnautica 2 - Build 115506')).toBe('Subnautica 2')
+  })
+  it('strips a revision suffix', () => {
+    expect(cleanGameName('My Game rev 42')).toBe('My Game')
+  })
+  it('strips dotted version suffixes', () => {
+    expect(cleanGameName('My Game v1.2.3')).toBe('My Game')
+    expect(cleanGameName('My Game 1.0')).toBe('My Game')
+    expect(cleanGameName('My Game (1.0.0)')).toBe('My Game')
+  })
+  it('strips architecture and renderer tags', () => {
+    expect(cleanGameName('My Game (64-bit)')).toBe('My Game')
+    expect(cleanGameName('My Game [DX12]')).toBe('My Game')
+    expect(cleanGameName('My Game x64')).toBe('My Game')
+    expect(cleanGameName('My Game - Vulkan')).toBe('My Game')
+  })
+  it('strips the storefront suffix', () => {
+    expect(cleanGameName('Path of Exile Steam')).toBe('Path of Exile')
+  })
+  it('clears combined noise iteratively', () => {
+    expect(cleanGameName('My Game - Build 12 (64-bit)')).toBe('My Game')
+  })
+  it('preserves a legitimate trailing number', () => {
+    expect(cleanGameName('Half-Life 2')).toBe('Half-Life 2')
+    expect(cleanGameName('Portal 2')).toBe('Portal 2')
+    expect(cleanGameName('Cyberpunk 2077')).toBe('Cyberpunk 2077')
+    expect(cleanGameName('F1 24')).toBe('F1 24')
+    expect(cleanGameName('DOOM (2016)')).toBe('DOOM (2016)')
+  })
+  it('trims surrounding whitespace', () => {
+    expect(cleanGameName('  Hollow Knight  ')).toBe('Hollow Knight')
+  })
+  it('returns empty string for empty input', () => {
+    expect(cleanGameName('')).toBe('')
+  })
+  it('falls back to the original when the whole string is noise', () => {
+    expect(cleanGameName('Build 12345')).toBe('Build 12345')
   })
 })

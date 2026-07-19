@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-[12px] text-destructive font-medium">
               {STRINGS.errors.rendererCrashed}
             </p>
-            <p className="text-[10px] text-muted-foreground break-all">
+            <p className="text-[11px] text-muted-foreground break-all">
               {this.state.error.message}
             </p>
             <button

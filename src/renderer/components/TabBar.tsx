@@ -1,4 +1,4 @@
-﻿import { MousePointer2, Plus, Volume2, VolumeX, X, Minimize2, Maximize2 } from 'lucide-react'
+﻿import { MousePointer2, Plus, Volume2, VolumeX, X, Minimize2, Maximize2, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/appStore'
 import { cn } from '../lib/cn'
@@ -13,10 +13,8 @@ const GAP = 4
 const GAP_AFTER = 4
 
 export function TabBar(): JSX.Element {
-  const { tabs, activeTabId, activeProfile, overlayState } = useAppStore()
+  const { tabs, activeTabId, activeProfile, overlayState, isMaximized } = useAppStore()
   const TAB_MAX_W = Math.round(window.screen.width * 180 / 1920)
-  const [maximized, setMaximized] = useState(false)
-  useEffect(() => { void window.aether.overlay.isMaximized().then(setMaximized) }, [])
 
   // ── Tab order ─────────────────────────────────────────────────────────────────
 
@@ -285,6 +283,8 @@ export function TabBar(): JSX.Element {
   const captureX = useRef(0)
   const captureY = useRef(0)
   const pointerDownScreenX = useRef(0)
+  const lastScreenX = useRef(0)
+  const lastScreenY = useRef(0)
 
   const onFillerPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
@@ -296,6 +296,8 @@ export function TabBar(): JSX.Element {
     captureX.current = e.clientX
     captureY.current = e.clientY
     pointerDownScreenX.current = e.screenX
+    lastScreenX.current = e.screenX
+    lastScreenY.current = e.screenY
   }
 
   const onFillerPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -307,7 +309,7 @@ export function TabBar(): JSX.Element {
       if (Math.abs(e.screenX - pointerDownScreenX.current) < 4) return
       windowDragging.current = true
 
-      if (maximized) {
+      if (isMaximized) {
         unmaximizing.current = true
         windowDragAborted.current = false
         const sx = e.screenX
@@ -317,7 +319,6 @@ export function TabBar(): JSX.Element {
         void (async () => {
           const bounds = await window.aether.overlay.unmaximize()
           if (windowDragAborted.current) return
-          setMaximized(false)
           if (bounds) {
             const newCaptureX = Math.round(clickX * bounds.width / maxW)
             captureX.current = newCaptureX
@@ -325,6 +326,8 @@ export function TabBar(): JSX.Element {
               Math.round(sx - newCaptureX),
               Math.round(sy - captureY.current),
             )
+            lastScreenX.current = sx
+            lastScreenY.current = sy
           }
           unmaximizing.current = false
         })()
@@ -332,10 +335,11 @@ export function TabBar(): JSX.Element {
       }
     }
 
-    window.aether.overlay.setPosition(
-      Math.round(e.screenX - captureX.current),
-      Math.round(e.screenY - captureY.current),
-    )
+    const dx = Math.round(e.screenX - lastScreenX.current)
+    const dy = Math.round(e.screenY - lastScreenY.current)
+    lastScreenX.current = e.screenX
+    lastScreenY.current = e.screenY
+    if (dx !== 0 || dy !== 0) window.aether.overlay.moveByDelta(dx, dy)
   }
 
   const onFillerPointerUp = (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -358,7 +362,7 @@ export function TabBar(): JSX.Element {
   return (
     <div className="flex items-stretch h-10 px-1 bg-background">
 
-      {/* Active profile */}
+      {/* Active profile — opens Electron popup (required to appear above WebView2) */}
       <button
         type="button"
         aria-label={activeProfile?.name ?? 'Overframe'}
@@ -455,12 +459,16 @@ export function TabBar(): JSX.Element {
                     : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground/80',
                 )}
               >
-                  {!hideIcon && tab.favicon && (
-                    <img
-                      src={tab.favicon}
-                      alt=""
-                      className={cn('h-4 w-4 shrink-0', poppingFavicons.has(tab.id) ? 'favicon-pop' : 'opacity-80')}
-                    />
+                  {!hideIcon && (
+                    tab.isLoading ? (
+                      <Loader2 size={13} className="animate-spin shrink-0 text-muted-foreground" aria-hidden="true" />
+                    ) : tab.favicon ? (
+                      <img
+                        src={tab.favicon}
+                        alt=""
+                        className={cn('h-4 w-4 shrink-0', poppingFavicons.has(tab.id) ? 'favicon-pop' : 'opacity-80')}
+                      />
+                    ) : null
                   )}
 
                   {/* Audio indicator — shown when audio is playing or tab is muted */}
@@ -560,13 +568,15 @@ export function TabBar(): JSX.Element {
                   isActive ? 'bg-[#1d1d1d] text-foreground' : 'bg-muted/40 text-muted-foreground',
                 )}
               >
-                {tab.favicon && (
+                {tab.isLoading ? (
+                  <Loader2 size={13} className="animate-spin shrink-0 text-muted-foreground" aria-hidden="true" />
+                ) : tab.favicon ? (
                   <img
                     src={tab.favicon}
                     alt=""
                     className={cn('h-4 w-4 shrink-0', poppingFavicons.has(tab.id) ? 'favicon-pop' : 'opacity-80')}
                   />
-                )}
+                ) : null}
                 <span
                   className="text-[12px] h-full items-center flex leading-none whitespace-nowrap flex-1 min-w-0"
                   style={{
@@ -598,7 +608,7 @@ export function TabBar(): JSX.Element {
             'flex items-center justify-center shrink-0 h-full transition-colors cursor-default ml-1',
             canCreate
               ? 'text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded'
-              : 'text-muted-foreground/25',
+              : 'text-muted-foreground opacity-40',
           )}
         >
           <Plus size={16} />
@@ -621,7 +631,7 @@ export function TabBar(): JSX.Element {
               title="Overlay is transparent to clicks. Click to exit click-through mode."
               onClick={() => window.aether.overlay.leaveClickThrough()}
               onPointerDown={(e) => e.stopPropagation()}
-              className="pointer-events-auto flex items-center gap-1 shrink-0 h-5 px-2 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/35 hover:text-amber-300 border border-amber-500/35 transition-colors cursor-default"
+              className="pointer-events-auto flex items-center gap-1 shrink-0 h-5 px-2 rounded text-[11px] font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/35 hover:text-amber-300 border border-amber-500/35 transition-colors cursor-default"
             >
               <MousePointer2 size={10} />
               pass-through
@@ -634,7 +644,7 @@ export function TabBar(): JSX.Element {
       <div className="no-drag flex items-center gap-0.5 shrink-0">
 
         <div
-          className="no-drag pointer-events-auto flex items-center justify-center h-7 w-[41.09px] text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+          className="no-drag pointer-events-auto flex items-center justify-center h-7 w-[41.09px] text-muted-foreground hover:text-foreground transition-colors"
           title="Drag to move"
           onPointerDown={onFillerPointerDown}
           onPointerMove={onFillerPointerMove}
@@ -645,11 +655,11 @@ export function TabBar(): JSX.Element {
 
         <button
           type="button"
-          aria-label={maximized ? 'Restore window' : 'Maximize window'}
-          onClick={() => void window.aether.overlay.toggleMaximize().then(() => setMaximized((v) => !v))}
+          aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
+          onClick={() => void window.aether.overlay.toggleMaximize()}
           className="flex items-center justify-center h-8 w-8 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-default"
         >
-          {maximized ? <Minimize2 size={16} strokeWidth={1.5} /> : <Maximize2 size={16} strokeWidth={1.5} />}
+          {isMaximized ? <Minimize2 size={16} strokeWidth={1.5} /> : <Maximize2 size={16} strokeWidth={1.5} />}
         </button>
 
         <button

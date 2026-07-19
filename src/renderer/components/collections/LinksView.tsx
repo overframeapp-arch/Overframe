@@ -14,7 +14,7 @@ interface LinksViewProps {
   tabs: Tab[]
   onOpen: (url: string) => void
   onAddLink: (link: { title: string; url: string; favicon?: string }) => void
-  onEditLink: (lid: string, title: string, url: string) => void
+  onEditLink: (lid: string, title: string, url: string, note: string) => void
   onRemoveLink: (lid: string) => void
   onReorderLinks: (ids: string[]) => void
 }
@@ -76,9 +76,9 @@ export function LinksView({
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
         {sorted.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground/50">
+          <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
             <LinkIcon size={20} aria-hidden="true" />
-            <p className="text-[11px]">No links yet — click + to add one.</p>
+            <p className="text-[11px]">No links yet. Click + to add one.</p>
           </div>
         )}
         {sorted.length > 0 && (
@@ -113,7 +113,7 @@ export function LinksView({
                   <LinkRow link={l}
                     isDragging={draggedLinkId === l.id}
                     onOpen={onOpen}
-                    onEdit={onEditLink}
+                    onEdit={(lid, title, url, note) => onEditLink(lid, title, url, note)}
                     onRemove={onRemoveLink} />
                 </li>
               )
@@ -169,7 +169,7 @@ export function LinksView({
                 <Favicon url={tab.url} favicon={tab.favicon} className="w-3.5 h-3.5 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] truncate">{tab.title || tab.url}</div>
-                  <div className="text-[10px] text-muted-foreground/60 truncate">{tab.url}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{tab.url}</div>
                 </div>
               </div>
             ))}

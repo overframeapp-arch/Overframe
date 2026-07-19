@@ -8,7 +8,7 @@
     --background:           0 0%  8%;   /* #141414  base carbone        */
     --foreground:           0 0% 92%;   /* #EBEBEB                       */
     --muted:                0 0% 13%;   /* #212121  surface elevée       */
-    --muted-foreground:     0 0% 46%;   /* #757575                       */
+    --muted-foreground:     0 0% 55%;   /* #8C8C8C  5.3:1 on #141414 — WCAG AA ✓ */
 
     /* ── Bordures / inputs ───────────────────────────── */
     --border:               0 0% 19%;   /* #303030                       */
@@ -27,6 +27,14 @@
 
     /* ── Shape ───────────────────────────────────────── */
     --radius: 0.35rem;
+
+    /* ── Instant Gaming brand ────────────────────────── */
+    --ig-orange:       23 100% 50%;   /* #ff6400  brand orange            */
+    --ig-orange-dark:  24 100% 45%;   /* #e55a00  hover / active          */
+    --ig-orange-light: 37 100% 50%;   /* #ff9d00  gradient end            */
+
+    /* ── Ko-fi brand ──────────────────────────────────── */
+    --ko-fi-red:         1 100% 68%;  /* #ff5e5b  brand red               */
   }
 
   html, body, #root { height: 100%; margin: 0; }

@@ -163,7 +163,7 @@ export function AddLinkMenu({ currentTab, pinnedLinks, onAdd }: AddLinkMenuProps
           )}
           {pinnedLinks.length > 0 && (
             <>
-              <p className="px-3 py-0.5 text-[10px] text-muted-foreground">Pinned links</p>
+              <p className="px-3 py-0.5 text-[11px] text-muted-foreground">Pinned links</p>
               {pinnedLinks.map((l) => (
                 <DropdownMenu.Item key={`${l.collectionId}-${l.id}`}
                   onSelect={() => onAdd({ title: l.title, url: l.url, favicon: l.favicon })}
@@ -171,7 +171,7 @@ export function AddLinkMenu({ currentTab, pinnedLinks, onAdd }: AddLinkMenuProps
                   <Favicon url={l.url} favicon={l.favicon} />
                   <div className="flex-1 min-w-0">
                     <div className="truncate">{l.title}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{l.collectionName}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{l.collectionName}</div>
                   </div>
                 </DropdownMenu.Item>
               ))}

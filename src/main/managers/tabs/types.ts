@@ -1,9 +1,9 @@
-import type { WebContentsView } from 'electron'
 import type { DownloadEvent, TabState } from '@shared/types'
+import type { WebView2View } from '../tabs/WebView2View'
 
 export interface ManagedTab {
   id: string
-  view: WebContentsView
+  view: WebView2View
   state: TabState
 }
 

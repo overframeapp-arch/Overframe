@@ -2,6 +2,7 @@ import { useId, useMemo, useState, useEffect } from 'react'
 import { Check, X, BookOpen, Globe } from 'lucide-react'
 import type { Collection, CollectionPickerPayload } from '@shared/types'
 import { cn } from '../lib/cn'
+import { bannerImageStyle } from '../lib/bannerFocusStyle'
 
 function collectionStorageKey(profileId: string): string {
   return `bookmarkBar:collectionId:${profileId}`
@@ -80,14 +81,16 @@ export function CollectionPickerPopup({ payload }: Props): JSX.Element {
                   {isSelected
                     ? <Check size={12} className="text-primary" aria-hidden="true" />
                     : c.iconUrl
-                      ? <img src={c.iconUrl} alt="" aria-hidden="true" className="h-4 w-4 rounded-sm object-contain" />
-                      : <Globe size={11} className="text-muted-foreground/30" aria-hidden="true" />
+                      ? <span className="h-4 w-4 rounded-sm overflow-hidden">
+                          <img src={c.iconUrl} alt="" aria-hidden="true" className="h-full w-full object-cover" style={bannerImageStyle(c.iconFocus)} />
+                        </span>
+                      : <Globe size={11} className="text-muted-foreground" aria-hidden="true" />
                   }
                 </div>
                 <span className={cn('text-[12px] flex-1 truncate', isSelected && 'text-primary font-medium')}>
                   {c.name}
                 </span>
-                <span className="text-[10px] text-muted-foreground/50 shrink-0" aria-label={`${c.links.length} links`}>
+                <span className="text-[11px] text-muted-foreground shrink-0" aria-label={`${c.links.length} links`}>
                   {c.links.length}
                 </span>
               </button>
@@ -95,7 +98,7 @@ export function CollectionPickerPopup({ payload }: Props): JSX.Element {
           )
         })}
         {collections.length === 0 && (
-          <li className="px-3 py-6 text-center text-[11px] text-muted-foreground/50">
+          <li className="px-3 py-6 text-center text-[11px] text-muted-foreground">
             No collections
           </li>
         )}
@@ -106,7 +109,7 @@ export function CollectionPickerPopup({ payload }: Props): JSX.Element {
         <button
           type="button"
           aria-label="Manage links in this collection"
-          onClick={() => void window.aether.popup.openPanel('links', selectedId ?? undefined)}
+          onClick={() => void window.aether.popup.navigateHome('manage')}
           className="w-full flex items-center gap-2 h-6 px-2 rounded text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
         >
           <BookOpen size={12} aria-hidden="true" />

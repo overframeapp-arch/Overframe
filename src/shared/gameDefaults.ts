@@ -8,6 +8,20 @@
  * Zero Node/Electron imports — safe for renderer use.
  */
 
+/**
+ * Name fragments that mark a process as a launcher/utility rather than a game —
+ * such processes are skipped by auto-detection unless the user adds their exact
+ * name to the `launcherExceptions` setting. Surfaced in the Game detection
+ * settings so users can see WHY a game named like this is skipped.
+ */
+export const LAUNCHER_NAME_PATTERNS: readonly string[] = [
+  'launcher', 'updater', 'patcher', 'installer', 'uninstaller',
+  'setup', 'helper', 'service', 'daemon', 'agent', 'tray',
+  'crashhandler', 'crashreporter', 'bugsplat', 'sentry',
+  'webhelper', 'cefsubprocess', 'subprocess', 'renderer',
+  'bootstrapper', 'bootstrap',
+]
+
 /** Path fragments that are always excluded from game-install detection. */
 export const DEFAULT_NON_GAME_DIRS: readonly string[] = [
   '\\program files\\',

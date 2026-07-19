@@ -2,7 +2,6 @@ import {
   BrowserWindow,
   screen,
   app,
-  WebContentsView
 } from 'electron'
 import path from 'node:path'
 import {
@@ -10,7 +9,9 @@ import {
   WindowBounds,
   DRAG_ZONE_HEIGHT,
   CHROME_HEIGHT,
+  RESIZE_BORDER,
 } from '@shared/types'
+import { IPC } from '@shared/ipc'
 
 const isDev = !app.isPackaged
 
@@ -25,6 +26,8 @@ export class OverlayWindow {
   private state: OverlayState = 'HIDDEN'
   private listeners = new Set<(state: OverlayState) => void>()
   private firstShowListeners = new Set<() => void>()
+  /** Fired synchronously at the very start of hide(), before any window op. */
+  private beforeHideListeners = new Set<() => void>()
   private currentOpacity = 1.0
   private panelWidth = 0
   private chromeHeight = CHROME_HEIGHT
@@ -40,7 +43,7 @@ export class OverlayWindow {
     this.win = new BrowserWindow({
       ...safeBounds,
       minWidth: 500,
-      minHeight: 120,
+      minHeight: CHROME_HEIGHT + RESIZE_BORDER * 2 + 1,
       icon: resolveIcon(),
       frame: false,
       transparent: true,
@@ -72,6 +75,11 @@ export class OverlayWindow {
       void this.win.loadFile(path.join(__dirname, '../renderer/index.html'))
     }
 
+    // setMinimumSize() is required in addition to the constructor option —
+    // frameless transparent windows on Windows can ignore minWidth/minHeight
+    // from the constructor when the OS native resize handles are used.
+    this.win.setMinimumSize(500, CHROME_HEIGHT + RESIZE_BORDER * 2 + 1)
+
     this.win.on('closed', () => {
       this.listeners.clear()
     })
@@ -98,23 +106,34 @@ export class OverlayWindow {
       this.win.setOpacity(this.currentOpacity)
       this.win.setIgnoreMouseEvents(false)
     }
-    if (!this.everShown) {
-      this.everShown = true
-      // Fire one-shot "first show" callbacks and release them
-      for (const cb of this.firstShowListeners) cb()
-      this.firstShowListeners.clear()
-    }
+    const isFirstShow = !this.everShown
+    if (isFirstShow) this.everShown = true
     // Re-assert always-on-top in case the OS demoted us while hidden,
     // then bring the window to foreground and steal keyboard focus.
     this.win.setAlwaysOnTop(true, 'screen-saver')
     this.win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
     this.win.show()
     this.win.moveTop()
+    // Fire one-shot "first show" callbacks only AFTER the window is actually
+    // visible on screen. Session restore (the sole listener) navigates the active
+    // tab here; doing it before win.show() means the active tab begins loading
+    // while its WebView2 host window is still hidden. Visibility-gated media pages
+    // (e.g. a YouTube watch page) then stall indefinitely — they wait for
+    // document.visibilityState to become 'visible' before initialising the player.
+    // A background tab opened later by a user click never hits this because the
+    // window is already visible by then.
+    if (isFirstShow) {
+      for (const cb of this.firstShowListeners) cb()
+      this.firstShowListeners.clear()
+    }
     if (restoreClickThrough) {
       // Restore click-through without stealing keyboard focus from the game.
       this.applyClickThrough(true)
       this.setState('CLICK_THROUGH')
     } else {
+      // Ensure mouse events reach the window regardless of the previous state
+      // (e.g. show() called via a global shortcut while in CLICK_THROUGH mode).
+      this.win.setIgnoreMouseEvents(false)
       app.focus({ steal: true })
       if (this.state !== 'FOCUSED') {
         this.setState('FOCUSED')
@@ -124,6 +143,9 @@ export class OverlayWindow {
 
   hide(): void {
     if (this.state === 'HIDDEN') return
+    // Let companion windows (e.g. the IG promo) retract themselves BEFORE we
+    // start reshuffling always-on-top / focus below.
+    for (const cb of this.beforeHideListeners) cb()
     // Save current state so show() can restore it (e.g. CT mode survives a hide/show).
     this.stateBeforeHide = this.state
     // Drop alwaysOnTop while invisible — this removes the window from the DWM
@@ -169,6 +191,13 @@ export class OverlayWindow {
   onStateChange(cb: (state: OverlayState) => void): () => void {
     this.listeners.add(cb)
     return () => this.listeners.delete(cb)
+  }
+
+  /** Registers a callback fired synchronously at the start of every hide(),
+   *  before any window operation. Use it to retract companion windows. */
+  onBeforeHide(cb: () => void): () => void {
+    this.beforeHideListeners.add(cb)
+    return () => this.beforeHideListeners.delete(cb)
   }
 
   /** Registers a one-shot callback fired the first time the overlay becomes visible.
@@ -239,13 +268,16 @@ export class OverlayWindow {
 
   toggleMaximize(): void {
     if (this.savedBounds) {
-      this.win.setBounds(this.savedBounds)
+      this.win.setResizable(true)
+      this.win.setBounds(this.clampToDisplay(this.savedBounds))
       this.savedBounds = null
+      this.win.webContents.send(IPC.EventMaximizedChanged, false)
     } else {
       this.savedBounds = this.getBounds()
       const display = screen.getDisplayMatching(this.win.getBounds())
-      const wa = display.workArea
-      this.win.setBounds({ x: wa.x, y: wa.y, width: wa.width, height: wa.height })
+      this.win.setBounds(display.bounds)
+      this.win.setResizable(false)
+      this.win.webContents.send(IPC.EventMaximizedChanged, true)
     }
   }
 
@@ -257,8 +289,10 @@ export class OverlayWindow {
   unmaximize(): WindowBounds | null {
     if (!this.savedBounds) return null
     const bounds = { ...this.savedBounds }
-    this.win.setBounds(this.savedBounds)
+    this.win.setResizable(true)
+    this.win.setBounds(this.clampToDisplay(this.savedBounds))
     this.savedBounds = null
+    this.win.webContents.send(IPC.EventMaximizedChanged, false)
     return bounds
   }
 
@@ -266,6 +300,13 @@ export class OverlayWindow {
   setPositionXY(x: number, y: number): void {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return
     this.win.setPosition(Math.round(x), Math.round(y))
+  }
+
+  /** Translate the window by (dx, dy) logical pixels relative to its current position. */
+  moveByDelta(dx: number, dy: number): void {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
+    const [x, y] = this.win.getPosition()
+    this.win.setPosition(Math.round(x + dx), Math.round(y + dy))
   }
 
   setBounds(bounds: WindowBounds): void {
@@ -281,8 +322,9 @@ export class OverlayWindow {
   private clampToDisplay(bounds: WindowBounds): WindowBounds {
     const display = screen.getDisplayMatching(bounds) ?? screen.getPrimaryDisplay()
     const wa = display.workArea
-    const width = Math.min(Math.max(bounds.width, 400), wa.width)
-    const height = Math.min(Math.max(bounds.height, 300), wa.height)
+    const minH = CHROME_HEIGHT + RESIZE_BORDER * 2 + 1
+    const width = Math.min(Math.max(bounds.width, 500), wa.width)
+    const height = Math.min(Math.max(bounds.height, minH), wa.height)
     const x = Math.min(Math.max(bounds.x, wa.x), wa.x + wa.width - width)
     const y = Math.min(Math.max(bounds.y, wa.y), wa.y + wa.height - height)
     return { x, y, width, height }
@@ -292,48 +334,32 @@ export class OverlayWindow {
   //  WebContentsView management (tabs)
   // ─────────────────────────────────────────────────────────────────────
 
-  attachView(view: WebContentsView): void {
-    this.win.contentView.addChildView(view)
-    this.layoutView(view)
-  }
-
-  detachView(view: WebContentsView): void {
-    try {
-      this.win.contentView.removeChildView(view)
-    } catch {
-      // already removed
-    }
-  }
-
-  layoutView(view: WebContentsView): void {
+  /** Returns the tab content area bounds (relative to the overlay's client area). */
+  getTabContentBounds(): { x: number; y: number; width: number; height: number } {
     const { width, height } = this.win.getContentBounds()
-    const SIDE   = 1
-    const TOP    = 1
-    const BOTTOM = 1
-    view.setBounds({
-      x: SIDE,
-      y: this.chromeHeight + TOP,
-      width: Math.max(0, width - this.panelWidth - SIDE * 2),
-      height: Math.max(0, height - this.chromeHeight - TOP - BOTTOM)
-    })
+    // In maximized mode the inner div is inset-0 (no transparent resize ring, no 1px border).
+    // In normal mode it is inset-[6px] + a 1px border = 7px offset on every side.
+    const inset = this.savedBounds !== null ? 0 : RESIZE_BORDER + 1
+    return {
+      x: inset,
+      y: this.chromeHeight + inset,
+      width: Math.max(0, width - this.panelWidth - inset * 2),
+      height: Math.max(0, height - this.chromeHeight - inset * 2),
+    }
   }
 
   setChromeHeight(h: number): void {
     this.chromeHeight = Math.max(0, h)
-    const views = this.win.contentView.children as WebContentsView[]
-    for (const v of views) this.layoutView(v)
+    this.onLayoutChange?.()
   }
 
   setPanelWidth(w: number): void {
     this.panelWidth = Math.max(0, w)
-    // Re-layout all active views
-    const views = this.win.contentView.children as WebContentsView[]
-    for (const v of views) this.layoutView(v)
+    this.onLayoutChange?.()
   }
 
-  layoutAllViews(views: WebContentsView[]): void {
-    for (const view of views) this.layoutView(view)
-  }
+  /** Called by TabManager whenever chrome/panel dimensions change. */
+  onLayoutChange: (() => void) | null = null
 }
 
 export { DRAG_ZONE_HEIGHT, CHROME_HEIGHT }

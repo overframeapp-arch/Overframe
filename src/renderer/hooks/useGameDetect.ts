@@ -4,6 +4,12 @@ export interface VisibleGame {
   processName: string
   exePath: string
   displayName: string
+  /** Main window title — often the clean game name when PE metadata (displayName) is absent. */
+  windowTitle: string
+  /** PNG data URL of the window's taskbar icon, or '' if unavailable. */
+  iconDataUrl: string
+  /** True when the window covers an entire display — strong signal this is the game being played. */
+  isFullscreen: boolean
 }
 
 export interface UseGameDetectReturn {

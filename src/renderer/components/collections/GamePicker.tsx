@@ -1,25 +1,47 @@
-import { Loader2, Search } from 'lucide-react'
+import { Gamepad2, Loader2, Search } from 'lucide-react'
 import { useGameDetect, type VisibleGame } from '../../hooks/useGameDetect'
+import { ProfileIcon } from '../ProfileIcon'
 import { InfoTip } from './atoms'
 
 interface GamePickerProps {
-  games: { processName: string; exePath: string; displayName: string }[]
-  onPick: (game: { processName: string; exePath: string; displayName: string }) => void
+  games: VisibleGame[]
+  onPick: (game: VisibleGame) => void
 }
 
 export function GamePicker({ games, onPick }: GamePickerProps): JSX.Element {
+  if (games.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 rounded-md border border-border bg-background px-3 py-5 text-center shadow-lg">
+        <Gamepad2 size={18} className="text-muted-foreground" aria-hidden="true" />
+        <p className="text-[11px] text-muted-foreground">No running games detected.</p>
+      </div>
+    )
+  }
   return (
-    <div className="flex flex-col rounded border border-border bg-background shadow-md overflow-hidden">
-      {games.length === 0
-        ? <p className="px-3 py-2 text-[11px] text-muted-foreground">No running games detected.</p>
-        : games.map((g) => (
-          <button key={g.exePath} type="button" onClick={() => onPick(g)}
-            className="flex items-center gap-2 px-3 py-2 text-left text-[11px] hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0">
-            <span className="flex-1 truncate">{g.displayName || g.processName}</span>
-            <span className="text-muted-foreground/60 text-[10px] shrink-0">{g.processName.toLowerCase()}</span>
+    <div className="flex max-h-56 flex-col overflow-y-auto rounded-md border border-border bg-background shadow-lg">
+      {games.map((g) => {
+        const label = g.displayName || g.windowTitle || g.processName
+        return (
+          <button
+            key={g.exePath}
+            type="button"
+            onClick={() => onPick(g)}
+            className="flex items-center gap-2.5 px-2.5 py-2 text-left transition-colors border-b border-border/30 last:border-0 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            <ProfileIcon iconUrl={g.iconDataUrl || undefined} name={label} size={22} />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-[12px] font-medium text-foreground">{label}</span>
+              <span className="truncate text-[11px] text-muted-foreground">{g.processName.toLowerCase()}.exe</span>
+            </div>
+            {g.isFullscreen && (
+              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+                Fullscreen
+              </span>
+            )}
           </button>
-        ))
-      }
+        )
+      })}
     </div>
   )
 }
@@ -42,7 +64,7 @@ export function ProcessNamesField({ id, value, onChange, onPickGame }: ProcessNa
           <InfoTip text="Comma-separated .exe names (e.g. Game.exe). Overframe switches to this profile automatically when one of these processes becomes active." />
         </label>
         <button type="button" aria-label="Detect running games" onClick={() => void detect()} disabled={detectLoading}
-          className="flex items-center gap-1 h-5 px-1.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50">
+          className="flex items-center gap-1 h-5 px-1.5 rounded text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50">
           {detectLoading ? <Loader2 size={10} className="animate-spin" aria-hidden="true" /> : <Search size={10} aria-hidden="true" />}
           Detect
         </button>

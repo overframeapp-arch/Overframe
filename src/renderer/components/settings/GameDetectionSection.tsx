@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ChevronRight, FolderPlus, RotateCcw, X } from 'lucide-react'
 import type { Settings } from '@shared/types'
 import {
   DEFAULT_BLOCKED_PROCESSES,
   DEFAULT_GAME_PATH_HINTS,
   DEFAULT_NON_GAME_DIRS,
+  LAUNCHER_NAME_PATTERNS,
 } from '@shared/gameDefaults'
 import { useAppStore } from '../../store/appStore'
-import { Section, Check, StringListEditor } from './Layout'
+import { Section, Check, StringListEditor, ChipList } from './Layout'
 
 function normaliseProcess(input: string): string {
   return input.trim().toLowerCase().replace(/\.exe$/i, '')
@@ -26,11 +27,24 @@ function normalisePathFragment(input: string): string {
   return v
 }
 
+/** Native .exe file picker — returns just the filename (normalize() strips .exe/case). */
+async function browseForExecutableName(): Promise<string | null> {
+  const picked = await window.aether.system.pickExecutable()
+  return picked ? (picked.split(/[\\/]/).pop() ?? picked) : null
+}
+
+/** Native folder picker — returns just the trailing folder name (normalize() wraps it in \'s). */
+async function browseForFolderFragment(): Promise<string | null> {
+  const picked = await window.aether.system.pickFolder()
+  if (!picked) return null
+  const parts = picked.split(/[\\/]/).filter(Boolean)
+  return parts.length > 0 ? parts[parts.length - 1] : null
+}
+
 export function GameDetectionSection(): JSX.Element {
   const { settings, setSettings } = useAppStore()
   const [excluded, setExcluded] = useState<string[]>([])
   const [customPaths, setCustomPaths] = useState<string[]>([])
-  const [excludedFilter, setExcludedFilter] = useState('')
   const [busy, setBusy] = useState(false)
 
   const reload = useCallback(async (): Promise<void> => {
@@ -74,30 +88,22 @@ export function GameDetectionSection(): JSX.Element {
     setCustomPaths((prev) => prev.filter((c) => c !== p))
   }
 
-  const filteredExcluded = useMemo(
-    () =>
-      excluded.filter((n) =>
-        excludedFilter.trim() === '' || n.toLowerCase().includes(excludedFilter.toLowerCase()),
-      ),
-    [excluded, excludedFilter],
-  )
-
   const gamePathHints: string[] = settings?.gamePathHints ?? [...DEFAULT_GAME_PATH_HINTS]
   const nonGameDirs: string[] = settings?.nonGameDirs ?? [...DEFAULT_NON_GAME_DIRS]
   const blockedProcesses: string[] = settings?.blockedProcesses ?? [...DEFAULT_BLOCKED_PROCESSES]
+  const launcherPatterns: string[] = settings?.launcherPatterns ?? [...LAUNCHER_NAME_PATTERNS]
   const launcherExceptions: string[] = settings?.launcherExceptions ?? []
 
   return (
-    <div className="space-y-4" aria-labelledby="section-game-detection">
+    <div className="space-y-6" aria-labelledby="section-game-detection">
 
       {/* ── Automation ───────────────────────────────────────── */}
       <Section
         title="Automation"
-        description="Control what Overframe does automatically when a game is detected."
+        description="What Overframe does automatically when a game starts."
       >
         <Check
           label="Auto-create profiles for new games"
-          hint="When a game with no matching profile is detected, Overframe creates one automatically."
         >
           <input
             type="checkbox"
@@ -107,7 +113,6 @@ export function GameDetectionSection(): JSX.Element {
         </Check>
         <Check
           label="Auto-switch to matching profile"
-          hint="When a known game is running, Overframe switches to its profile automatically."
         >
           <input
             type="checkbox"
@@ -120,40 +125,35 @@ export function GameDetectionSection(): JSX.Element {
       {/* ── Custom game folders ───────────────────────────────── */}
       <Section
         title="Custom game folders"
-        description="Games installed outside a known store? Add their root folder — any game launched from inside will be auto-detected."
+        description="Add folders where you install games outside Steam or Epic."
       >
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] text-muted-foreground/60">
-              Anything launched from inside is treated as a potential game.
-            </span>
-            <button
-              type="button"
-              aria-label="Add a game folder"
-              disabled={busy}
-              onClick={() => void handleAddCustomPath()}
-              className="flex items-center gap-1 text-[10px] text-muted-foreground/70 hover:text-foreground disabled:opacity-40 transition-colors"
-            >
-              <FolderPlus size={11} />
-              Add
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="Add a game folder"
+            disabled={busy}
+            onClick={() => void handleAddCustomPath()}
+            className="flex items-center gap-1 mb-1.5 rounded border border-border px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-40 transition-colors"
+          >
+            <FolderPlus size={11} />
+            Add folder
+          </button>
           {customPaths.length === 0 ? (
-            <p className="text-[10px] text-muted-foreground/40 leading-snug italic">
+            <p className="text-xs text-muted-foreground leading-snug">
               No custom folders added.
             </p>
           ) : (
             <ul className="space-y-1 max-h-32 overflow-y-auto pr-0.5" aria-label="Custom game folders">
               {customPaths.map((p) => (
                 <li key={p} className="flex items-center gap-2 rounded bg-muted/40 px-2 py-1 min-w-0">
-                  <span title={p} className="flex-1 truncate text-[10px] text-muted-foreground font-mono min-w-0">
+                  <span title={p} className="flex-1 truncate text-[11px] text-foreground/80 font-mono min-w-0">
                     {p}
                   </span>
                   <button
                     type="button"
                     aria-label={`Remove ${p}`}
                     onClick={() => void handleRemoveCustomPath(p)}
-                    className="shrink-0 text-muted-foreground/50 hover:text-destructive transition-colors"
+                    className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <X size={11} />
                   </button>
@@ -167,136 +167,138 @@ export function GameDetectionSection(): JSX.Element {
       {/* ── Excluded processes ───────────────────────────────── */}
       <Section
         title="Excluded processes"
-        description="Games you've removed from auto-detection. Click the restore icon to allow auto-creation again."
+        description="Games you've told Overframe to ignore."
       >
         {excluded.length === 0 ? (
-          <p className="text-[10px] text-muted-foreground/50 leading-snug">
-            None yet — when you remove a game from auto-detection it appears here.
+          <p className="text-xs text-muted-foreground leading-snug">
+            Nothing here yet.
           </p>
         ) : (
-          <>
-            {excluded.length > 3 && (
-              <input
-                type="search"
-                aria-label="Filter excluded processes"
-                placeholder="Filter…"
-                value={excludedFilter}
-                onChange={(e) => setExcludedFilter(e.target.value)}
-                className="w-full mb-1.5 rounded border border-border bg-transparent px-2 py-1 text-[10px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+          <ChipList
+            values={excluded}
+            ariaLabel="Excluded processes"
+            filterPlaceholder="Filter…"
+            renderChip={(name) => (
+              <>
+                <span title={name} className="truncate max-w-[180px]">{name}</span>
+                <button
+                  type="button"
+                  aria-label={`Re-enable ${name}`}
+                  title="Restore"
+                  onClick={() => void handleUnexclude(name)}
+                  className="shrink-0 text-muted-foreground hover:text-emerald-400 transition-colors"
+                >
+                  <RotateCcw size={11} />
+                </button>
+              </>
             )}
-            <div className="flex items-center gap-1 mb-1.5">
-              <span className="text-[11px] text-muted-foreground">
-                Excluded
-                {excluded.length > 0 && (
-                  <span className="ml-0.5 text-[9px] bg-muted rounded px-1 py-0.5 align-middle">
-                    {excluded.length}
-                  </span>
-                )}
-              </span>
-            </div>
-            <ul className="space-y-1 max-h-40 overflow-y-auto pr-0.5" aria-label="Excluded processes">
-              {filteredExcluded.map((name) => (
-                <li key={name} className="flex items-center gap-2 rounded bg-muted/40 px-2 py-1 min-w-0">
-                  <span className="flex-1 truncate text-[10px] text-muted-foreground font-mono min-w-0">
-                    {name}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`Re-enable ${name}`}
-                    title="Restore"
-                    onClick={() => void handleUnexclude(name)}
-                    className="shrink-0 text-muted-foreground/50 hover:text-emerald-400 transition-colors"
-                  >
-                    <RotateCcw size={11} />
-                  </button>
-                </li>
-              ))}
-              {filteredExcluded.length === 0 && excludedFilter.trim() !== '' && (
-                <p className="text-[10px] text-muted-foreground/50">No matches.</p>
-              )}
-            </ul>
-          </>
+          />
         )}
       </Section>
 
       {/* ── Advanced (collapsible) ────────────────────────────── */}
       <details className="group">
-        <summary className="flex items-center gap-1.5 cursor-pointer list-none select-none text-[9px] uppercase tracking-[0.12em] font-semibold text-muted-foreground/70 hover:text-foreground transition-colors">
+        <summary className="flex items-center gap-1.5 cursor-pointer list-none select-none text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground hover:text-foreground transition-colors">
           <ChevronRight size={10} className="transition-transform duration-150 group-open:rotate-90 shrink-0" />
           Advanced detection settings
         </summary>
 
-        <div className="mt-3 space-y-4">
+        <div className="mt-4 space-y-6">
 
           {/* Store paths */}
           <Section
             title="Recognized store paths"
-            description="Path fragments that tell Overframe a folder contains store-installed games (e.g. \\steamapps\\). Remove one to stop detecting that store; add your own for any unlisted store."
+            description="Folder names that identify a game store (e.g. \\steamapps\\)."
           >
             <StringListEditor
               label="Store path fragments"
-              hint="e.g. \\steamapps\\ identifies Steam games, \\epic games\\ for Epic. Remove to stop detecting that store."
+              hint="e.g. \\steamapps\\ for Steam, \\epic games\\ for Epic."
               values={gamePathHints}
               placeholder="\\mygames\\"
               normalize={normalisePathFragment}
               validate={(v) => (v.length < 4 ? 'Path fragment is too short.' : null)}
-              emptyText="No store fragments — only custom folders and fullscreen detection will be used."
+              emptyText="No store fragments. Only custom folders and fullscreen detection will be used."
               onReset={() => void persist('gamePathHints', [...DEFAULT_GAME_PATH_HINTS])}
               onChange={(next) => void persist('gamePathHints', next)}
+              onBrowse={browseForFolderFragment}
+              browseLabel="Browse for a store folder"
             />
           </Section>
 
           {/* System directories */}
           <Section
             title="System directories"
-            description="Path fragments that mark a location as a system folder, not a game install. Remove an entry if you actually have games installed there."
+            description="Folders skipped when looking for games."
           >
             <StringListEditor
               label="Excluded path fragments"
-              hint="e.g. \\appdata\\local\\ prevents AppData apps from being detected as games. Remove to allow detection in that folder."
+              hint="e.g. \\appdata\\local\\ stops apps in AppData from being detected as games."
               values={nonGameDirs}
               placeholder="\\my apps\\"
               normalize={normalisePathFragment}
               validate={(v) => (v.length < 4 ? 'Path fragment is too short.' : null)}
-              emptyText="No excluded paths — every location is treated as a potential game install."
+              emptyText="No excluded paths. Every location is treated as a potential game install."
               onReset={() => void persist('nonGameDirs', [...DEFAULT_NON_GAME_DIRS])}
               onChange={(next) => void persist('nonGameDirs', next)}
+              onBrowse={browseForFolderFragment}
+              browseLabel="Browse for a folder to exclude"
             />
           </Section>
 
           {/* Blocked processes */}
           <Section
             title="Blocked processes"
-            description="Process names that are never auto-detected as games regardless of where they run from. 'electron' and 'overframe' are always blocked."
+            description="Apps never treated as a game."
           >
             <StringListEditor
               label="Blocked process names"
-              hint="Lowercase names without .exe — e.g. 'discord', 'obs64'. Remove an entry to allow that process to be auto-detected as a game."
+              hint="e.g. 'discord', 'obs64'. No .exe needed."
               values={blockedProcesses}
               placeholder="obs64"
               normalize={normaliseProcess}
               validate={validateProcess}
-              emptyText="No blocked processes — all running processes are candidates for auto-detection."
+              emptyText="No blocked processes. All running processes are candidates for auto-detection."
               onReset={() => void persist('blockedProcesses', [...DEFAULT_BLOCKED_PROCESSES])}
               onChange={(next) => void persist('blockedProcesses', next)}
+              onBrowse={browseForExecutableName}
+              browseLabel="Browse for an .exe to block"
+            />
+          </Section>
+
+          {/* Launcher keywords */}
+          <Section
+            title="Launcher keywords"
+            description="Apps whose process name contains one of these words are treated as utilities and skipped, unless listed as an exception below."
+          >
+            <StringListEditor
+              label="Excluded keywords"
+              hint="Partial match, case-insensitive — e.g. 'launcher' matches 'GameLauncher.exe'."
+              values={launcherPatterns}
+              placeholder="launcher"
+              normalize={normaliseProcess}
+              validate={validateProcess}
+              emptyText="No keywords. Nothing is skipped based on its name alone."
+              onReset={() => void persist('launcherPatterns', [...LAUNCHER_NAME_PATTERNS])}
+              onChange={(next) => void persist('launcherPatterns', next)}
             />
           </Section>
 
           {/* Launcher exceptions */}
           <Section
             title="Launcher exceptions"
-            description="Some games have 'launcher', 'helper' or 'agent' in their process name and get incorrectly filtered out. Add them here to force detection."
+            description="Force detection for a specific game skipped by the keywords above."
           >
             <StringListEditor
               label="Exception names"
-              hint="e.g. if 'mygamelauncher' is a real game exe, add it here to bypass the launcher filter."
+              hint="The exact process name, without .exe — e.g. 'mygamelauncher'."
               values={launcherExceptions}
               placeholder="mygamelauncher"
               normalize={normaliseProcess}
               validate={validateProcess}
-              emptyText="None — the launcher filter skips obvious helpers (*launcher, *updater, *service…)."
+              emptyText="No exceptions yet."
               onChange={(next) => void persist('launcherExceptions', next)}
+              onBrowse={browseForExecutableName}
+              browseLabel="Browse for the game's .exe"
             />
           </Section>
 

@@ -1,6 +1,8 @@
-import koffi from 'koffi'
+import * as koffi from 'koffi'
 import { screen } from 'electron'
 import path from 'node:path'
+import { getExeProductName } from './getExeProductName'
+import { getWindowIconDataUrl } from './getWindowIcon'
 
 export interface VisibleGame {
   /** Process name without .exe, e.g. "PathOfExile_x64Steam" */
@@ -11,6 +13,8 @@ export interface VisibleGame {
   displayName: string
   /** Main window title as shown in the taskbar — often the clean game name when PE metadata is absent. */
   windowTitle: string
+  /** PNG data URL of the window's taskbar icon (launcher-agnostic, covers UWP), or '' */
+  iconDataUrl: string
   /** True when the process window covers an entire display — strong signal this is a game.
    *  Fullscreen processes bypass the install-path filter so games installed anywhere are detected. */
   isFullscreen: boolean
@@ -151,11 +155,20 @@ function enumerateVisibleGames(): VisibleGame[] {
         )
       }
 
+      const hwndForIcon = hwnd
       results.push({
         processName: path.basename(exePath, '.exe'),
         exePath,
-        displayName: '',
+        // PE ProductName / FileDescription (cached per path). '' when the exe has
+        // no version resource — callers then fall back to the window title.
+        displayName: getExeProductName(exePath),
         windowTitle: getWindowTitle(hwnd),
+        // Taskbar icon of the window — universal across launchers and app models
+        // (Win32 + UWP/Xbox). Extracted LAZILY on first read: extraction can block
+        // the main thread up to ~600 ms (3 × 200 ms SendMessageTimeoutW + GDI),
+        // so it must only run for candidates that survive ProfileManager's
+        // filters, not for every visible window on every poll. Cached per path.
+        get iconDataUrl(): string { return getWindowIconDataUrl(hwndForIcon, exePath) },
         isFullscreen,
         windowCX,
         windowCY,

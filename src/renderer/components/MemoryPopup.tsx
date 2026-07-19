@@ -137,7 +137,7 @@ export function MemoryPopup(): JSX.Element {
           aria-label="Close all tabs"
           onClick={closeAll}
           disabled={tabsWithMem.length === 0}
-          className="flex items-center gap-1 h-6 px-2 rounded border border-border/60 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="flex items-center gap-1 h-6 px-2 rounded border border-border/60 text-[11px] text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
           <X size={10} aria-hidden="true" />
           Close all

@@ -91,7 +91,7 @@ export function ShortcutInput({ value, usedBy, onChange }: ShortcutInputProps): 
         ref={ref}
         tabIndex={0}
         role="button"
-        aria-label={recording ? 'Recording shortcut — press a key combination' : `Shortcut: ${value ?? 'disabled'}`}
+        aria-label={recording ? 'Recording shortcut: press a key combination' : `Shortcut: ${value ?? 'disabled'}`}
         className={[
           'inline-flex items-center h-6 px-2 rounded border text-[11px] font-mono',
           'cursor-pointer select-none outline-none transition-colors min-w-[120px]',
@@ -99,7 +99,7 @@ export function ShortcutInput({ value, usedBy, onChange }: ShortcutInputProps): 
             ? 'border-primary bg-primary/10 text-primary'
             : value
               ? 'border-border bg-input hover:border-primary/50 text-foreground'
-              : 'border-border/40 bg-transparent text-muted-foreground/50 hover:border-border',
+              : 'border-border/40 bg-transparent text-muted-foreground hover:border-border',
         ].join(' ')}
         onClick={start}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start() } }}
@@ -107,11 +107,11 @@ export function ShortcutInput({ value, usedBy, onChange }: ShortcutInputProps): 
       >
         {recording
           ? <span className="animate-pulse">Press shortcut…</span>
-          : <span>{value ?? '—'}</span>
+          : <span>{value ?? 'None'}</span>
         }
       </div>
       {Boolean(usedBy) && !recording && (
-        <p className="text-[10px] text-amber-500">Conflicts with &quot;{usedBy}&quot;</p>
+        <p className="text-[11px] text-amber-500">Conflicts with &quot;{usedBy}&quot;</p>
       )}
     </div>
   )
