@@ -14,14 +14,14 @@ updater (src/main/index.ts) and the manual check (handlers.ts).
 
 ## 1. Owner checklist (Partner Center, ~30 min once)
 
-1. Create a Partner Center account: https://partner.microsoft.com/dashboard/registration (individual, free)
-2. Reserve the app name: **Overframe**
-3. From Product identity, copy these three values and give them to Claude:
-   - `Package/Identity/Name` (looks like `12345YourName.Overframe`)
-   - `Package/Identity/Publisher` (looks like `CN=A1B2C3D4-...`)
-   - `Package/Properties/PublisherDisplayName`
-4. Fill the IARC age-rating questionnaire (browser app: answers are all "no", rating comes back instantly)
-5. Approve the dev dependency `@electron-forge/maker-appx` so the MSIX can be built
+- [x] Create a Partner Center account (individual, free) — done 2026-07-19. Note: the "Publisher display name" field rejected several names (`overframeapp`, `Overframe Software`, `Overframe Studio`) with "not available" during account creation — a known Partner Center bug, not name-squatting. Resolved itself; plain `Overframe` eventually went through.
+- [x] Reserve the app name: **Overframe**
+- [x] Product identity values retrieved and wired into `forge.config.ts`:
+  - `Package/Identity/Name`: `Overframe.Overframe`
+  - `Package/Identity/Publisher`: `CN=A805C199-2F71-4C15-8CEE-70CC53BA0A3B`
+  - `Package/Properties/PublisherDisplayName`: `Overframe`
+- [x] Dev dependency `@electron-forge/maker-appx` approved and added
+- [ ] Fill the IARC age-rating questionnaire (browser app: answers are all "no", rating comes back instantly)
 
 ## 2. Listing copy (paste into Partner Center)
 
@@ -63,24 +63,25 @@ To produce before submission (larger window than the dev captures):
 - [ ] Collections manager with a filled collection
 - [ ] THE money shot: overlay visible above a real game (human task, any borderless game)
 
-## 4. forge.config.ts snippet (once the dependency is approved)
+## 4. Building the package — done
 
-```ts
-import { MakerAppX } from '@electron-forge/maker-appx'
+`forge.config.ts` now has a `MakerAppX` entry wired with the real identity
+values. Verified 2026-07-19: `pnpm exec electron-forge make --targets=@electron-forge/maker-appx`
+produces `dist/make/appx/x64/overframe.appx` (~179 MB), self-signed by a dev
+cert electron-forge generates automatically (`dist/make/appx/x64/default.*`) —
+that cert is only for local install testing; the Store re-signs the package
+during ingestion, so no purchased code-signing certificate is needed.
 
-// in makers[]:
-new MakerAppX({
-  packageName: '<Package/Identity/Name>',
-  publisher: '<Package/Identity/Publisher>',
-  publisherDisplayName: '<PublisherDisplayName>',
-  packageDisplayName: 'Overframe',
-  packageDescription: 'Browser overlay for gamers',
-  assets: 'public/store-assets', // 44x44, 150x150 logos etc.
-}),
-```
+No custom `assets` path is set, so the package ships electron-forge's default
+placeholder tile icons (Square44x44Logo, Square150x150Logo, etc.). Cosmetic
+only — replace with real Overframe-branded tiles before final submission by
+adding an `assets: 'public/store-assets'` folder with the sized PNGs Microsoft
+documents, then re-run `pnpm make`.
 
-Build with `pnpm make`, upload the produced `.appx` in the Partner Center
-submission. Certification takes a few business days the first time.
+To reproduce: `pnpm build && pnpm build:addon && pnpm exec electron-forge make --targets=@electron-forge/maker-appx`
+(or the plain `pnpm make` runs it alongside Squirrel/ZIP). Upload the produced
+`.appx` in the Partner Center submission flow. Certification takes a few
+business days the first time.
 
 ## 5. After first publication
 

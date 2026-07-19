@@ -1,5 +1,6 @@
 import { MakerSquirrel } from '@electron-forge/maker-squirrel'
 import { MakerZIP } from '@electron-forge/maker-zip'
+import { MakerAppX } from '@electron-forge/maker-appx'
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives'
 
 const config = {
@@ -62,6 +63,16 @@ const config = {
       noMsi: true,
     }),
     new MakerZIP({}, ['win32']),
+    // Microsoft Store submission (MSIX route — the Store signs the package
+    // during ingestion, so no code-signing certificate is needed on our side).
+    // Identity values reserved in Partner Center (see docs/store/listing.md).
+    new MakerAppX({
+      packageName: 'Overframe.Overframe',
+      publisher: 'CN=A805C199-2F71-4C15-8CEE-70CC53BA0A3B',
+      packageDisplayName: 'Overframe',
+      packageDescription: 'A lightweight web overlay browser for gamers.',
+      packageExecutable: 'app\\overframe.exe',
+    }),
   ],
   plugins: [new AutoUnpackNativesPlugin({})],
 }
